@@ -35,7 +35,10 @@ test.describe("duplicates and +1", () => {
     const form = page.getByRole("form", { name: "Describe the request" });
     await form.getByRole("button", { name: /Use my current location/ }).click();
 
-    const match = page.getByTestId("duplicate-match");
+    // The neighbor's report (not any of this user's own earlier ones).
+    const match = page
+      .getByTestId("duplicate-match")
+      .filter({ hasText: "Likely already reported" });
     await expect(match).toContainText(
       "Likely already reported 0 m away: Pothole",
       {

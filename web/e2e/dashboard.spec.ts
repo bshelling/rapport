@@ -16,6 +16,8 @@ test.describe("dashboard and report details", () => {
   test("view a report, hand it to 311, see it on the dashboard", async ({
     page,
   }, testInfo) => {
+    // One long end-to-end journey; against prod (cold Lambdas) it needs more than 30 s.
+    test.setTimeout(90_000);
     const shot = (name: string) =>
       page.screenshot({
         path: `screenshots/${name}-${testInfo.project.name}.png`,
@@ -93,8 +95,34 @@ test.describe("dashboard and report details", () => {
     ).toHaveCount(0);
 
     await page.getByRole("button", { name: "All", exact: true }).click();
+    // Switching filters reloads the list; wait for this report to be back before clicking.
+    await expect(card).toContainText(`311 #${number}`);
     await card.click();
     await expect(page).toHaveURL(reportUrl);
+  });
+
+  test("a slow response for an old filter doesn't replace the current list", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signInFromHeader(page);
+    // Not a pothole: the duplicates spec seeds a neighbor's pothole at this spot.
+    await fileReport(page, "Drainage", "Street Flooding", "Race test report.");
+    await page.goto("/dashboard/");
+    const list = page.getByRole("list", { name: "Reports" });
+    await expect(list.getByRole("link").first()).toBeVisible();
+
+    // Make the "Resolved" answer arrive after the "All" answer.
+    await page.route("**/api/reports/mine?status=resolved*", async (route) => {
+      await new Promise((r) => setTimeout(r, 2000));
+      await route.continue();
+    });
+    await page.getByRole("button", { name: "Resolved", exact: true }).click();
+    await page.getByRole("button", { name: "All", exact: true }).click();
+    await expect(list.getByRole("link").first()).toBeVisible();
+    await page.waitForTimeout(2500); // the stale reply lands here
+    await expect(list.getByRole("link").first()).toBeVisible();
+    await expect(page.getByText("No reports yet.")).toHaveCount(0);
   });
 
   test("unknown report id shows not found", async ({ page }) => {

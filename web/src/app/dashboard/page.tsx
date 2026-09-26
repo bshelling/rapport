@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { ReportButton } from "@/components/report-button";
 import { SignInPrompt } from "@/components/sign-in-prompt";
@@ -27,24 +27,39 @@ export default function DashboardPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async (f: ReportFilter, after: string | null) => {
-    const page = await listMyReports(f, after);
-    setReports((prev) =>
-      after && prev ? [...prev, ...page.reports] : page.reports,
-    );
-    setCursor(page.next_cursor);
-  }, []);
+  // Each load is tagged; responses for a filter the user has already left are
+  // dropped (otherwise a slow "Resolved" reply can overwrite the "All" list).
+  const generation = useRef(0);
+
+  const load = useCallback(
+    async (f: ReportFilter, after: string | null, gen: number) => {
+      const page = await listMyReports(f, after);
+      if (gen !== generation.current) return;
+      setReports((prev) =>
+        after && prev ? [...prev, ...page.reports] : page.reports,
+      );
+      setCursor(page.next_cursor);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (auth.status !== "signedIn") return;
+    const gen = ++generation.current;
     setReports(null);
+    setCursor(null);
     setError(false);
-    load(filter, null).catch(() => setError(true));
+    load(filter, null, gen).catch(
+      () => gen === generation.current && setError(true),
+    );
   }, [auth.status, filter, load]);
 
   const more = async () => {
+    const gen = generation.current;
     setLoadingMore(true);
-    await load(filter, cursor).catch(() => setError(true));
+    await load(filter, cursor, gen).catch(
+      () => gen === generation.current && setError(true),
+    );
     setLoadingMore(false);
   };
 
