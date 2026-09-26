@@ -1,35 +1,15 @@
 import path from "node:path";
-import { expect, type Page, test } from "@playwright/test";
-import { hasE2EUser, signInFromHeader } from "./helpers";
+import { expect, test } from "@playwright/test";
+import {
+  describeIssue,
+  hasE2EUser,
+  openReport,
+  signInFromHeader,
+  stepOne,
+  stepTwo,
+} from "./helpers";
 
 const PHOTO = path.join(__dirname, "fixtures", "pothole-gps.jpg");
-
-async function openReport(page: Page) {
-  await page.getByRole("button", { name: "Report an issue" }).first().click();
-  return page.getByRole("dialog", { name: "Report an issue" });
-}
-
-async function stepOne(page: Page, type: string, reason: string) {
-  const dialog = page.getByRole("dialog");
-  await dialog.getByText(type, { exact: true }).click();
-  await dialog.getByText(reason, { exact: true }).click();
-  await dialog.getByRole("button", { name: "Continue" }).click();
-}
-
-async function stepTwo(page: Page) {
-  const form = page.getByRole("form", { name: "Contact info" });
-  await expect(form).toBeVisible();
-  await form.getByLabel("First name").fill("E2E");
-  await form.getByLabel("Last name").fill("Reporter");
-  await form.getByLabel("Email").fill("e2e@example.com");
-  await form.getByRole("button", { name: "Continue" }).click();
-}
-
-async function describe(page: Page, text: string) {
-  const editor = page.getByRole("textbox", { name: "Description" });
-  await editor.click();
-  await page.keyboard.type(text);
-}
 
 test("signed-out visitors are asked to sign in", async ({ page }) => {
   await page.goto("/");
@@ -82,7 +62,7 @@ test.describe("report flow", () => {
     await describeForm
       .getByLabel("Nearest address or landmark")
       .fill("Napoleon Ave & Magazine St");
-    await describe(
+    await describeIssue(
       page,
       "Catch basin is packed with leaves and water is backing up.",
     );
@@ -113,13 +93,13 @@ test.describe("report flow", () => {
     await expect(page.getByTestId("location-set")).toContainText(
       "29.95110, -90.07150",
     );
-    await describe(page, "Short");
+    await describeIssue(page, "Short");
     await form.getByRole("button", { name: "Submit report" }).click();
     await expect(form.getByRole("alert")).toContainText(
       "at least 10 characters",
     );
 
-    await describe(page, " but now long enough to submit.");
+    await describeIssue(page, " but now long enough to submit.");
     await form.getByRole("button", { name: "Submit report" }).click();
     await expect(page.getByTestId("report-submitted")).toContainText(
       "Pothole (Roads and Streets)",

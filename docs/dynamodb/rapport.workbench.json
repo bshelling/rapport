@@ -125,6 +125,10 @@
         {
           "AttributeName": "updated_at",
           "AttributeType": "S"
+        },
+        {
+          "AttributeName": "note",
+          "AttributeType": "S"
         }
       ],
       "TableFacets": [
@@ -260,7 +264,7 @@
           "FacetName": "ReportEvent",
           "KeyAttributeAlias": {
             "PartitionKeyAlias": "REPORT#{id}",
-            "SortKeyAlias": "EVENT#{ts}"
+            "SortKeyAlias": "EVENT#{ts}#{ulid}"
           },
           "TableData": [
             {
@@ -268,19 +272,24 @@
                 "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
               },
               "SK": {
-                "S": "EVENT#2026-09-26T15:10:00Z"
+                "S": "EVENT#2026-09-26T15:10:00Z#01J8ZK3Q7R2V5X9N4B6M8P0T1B"
               },
               "status": {
                 "S": "submitted"
               },
               "event_source": {
                 "S": "user"
+              },
+              "created_at": {
+                "S": "2026-09-26T15:10:00Z"
               }
             }
           ],
           "NonKeyAttributes": [
             "status",
-            "event_source"
+            "event_source",
+            "note",
+            "created_at"
           ],
           "DataAccess": {
             "MySql": {}
@@ -570,13 +579,16 @@
             "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
           },
           "SK": {
-            "S": "EVENT#2026-09-26T15:10:00Z"
+            "S": "EVENT#2026-09-26T15:10:00Z#01J8ZK3Q7R2V5X9N4B6M8P0T1B"
           },
           "status": {
             "S": "submitted"
           },
           "event_source": {
             "S": "user"
+          },
+          "created_at": {
+            "S": "2026-09-26T15:10:00Z"
           }
         },
         {

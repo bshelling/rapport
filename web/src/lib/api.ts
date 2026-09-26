@@ -185,3 +185,75 @@ export async function uploadToS3(
   if (!res.ok)
     throw new ApiError(res.status, await res.text().catch(() => undefined));
 }
+
+// --- Reports -----------------------------------------------------------------
+
+export type ReportStatus =
+  | "submitted"
+  | "filed_with_311"
+  | "in_progress"
+  | "resolved"
+  | "closed_duplicate";
+
+export type ReportSummary = {
+  id: string;
+  request_type: string;
+  request_reason: string;
+  status: ReportStatus;
+  address: string | null;
+  lat: number;
+  lng: number;
+  supporter_count: number;
+  photo_count: number;
+  thumbnail_url: string | null;
+  nola311_ticket: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReportEvent = {
+  status: ReportStatus;
+  source: "user" | "nola311" | "ai" | "system";
+  note: string | null;
+  created_at: string;
+};
+
+export type ReportDetail = {
+  id: string;
+  is_owner: boolean;
+  request_type: string;
+  request_reason: string;
+  status: ReportStatus;
+  location: DraftLocation;
+  description_html: string;
+  photos: { key: string; url: string }[];
+  supporter_count: number;
+  nola311_ticket: string | null;
+  contact: Contact | null;
+  events: ReportEvent[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReportFilter = "all" | "open" | "resolved";
+
+export const listMyReports = (status: ReportFilter, cursor?: string | null) => {
+  const q = new URLSearchParams({ status });
+  if (cursor) q.set("cursor", cursor);
+  return request<{ reports: ReportSummary[]; next_cursor: string | null }>(
+    `/api/reports/mine?${q}`,
+    { auth: true },
+  );
+};
+
+export const getReport = (id: string) =>
+  request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}`, {
+    auth: true,
+  });
+
+export const setTicket = (id: string, nola311_ticket: string) =>
+  request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ nola311_ticket }),
+    auth: true,
+  });

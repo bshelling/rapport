@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import Link from "next/link";
 import type { Report } from "@/lib/api";
 
 export function SubmittedReport({
@@ -62,13 +63,13 @@ export function SubmittedReport({
         >
           Report another
         </button>
-        <button
-          type="button"
+        <Link
+          href={`/reports/view/?id=${report.id}`}
           onClick={onClose}
           className="rounded-full bg-brand px-6 py-2 font-semibold text-background"
         >
-          Done
-        </button>
+          View report
+        </Link>
       </div>
     </div>
   );

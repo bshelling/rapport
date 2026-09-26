@@ -18,6 +18,12 @@ export function SiteHeader() {
         {auth.status === "signedIn" && (
           <>
             <Link
+              href="/dashboard/"
+              className="rounded-full px-3 py-1 text-sm font-medium hover:bg-brand/10"
+            >
+              My reports
+            </Link>
+            <Link
               href="/profile/"
               className="rounded-full px-3 py-1 text-sm font-medium hover:bg-brand/10"
             >

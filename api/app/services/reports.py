@@ -1,13 +1,34 @@
+import base64
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from boto3.dynamodb.conditions import Attr, Key
 from ulid import ULID
 
 from app import storage
 from app.db import get_table
 from app.geo import geohash
-from app.models.report import Report
+from app.models.report import (
+    OPEN_STATUSES,
+    Report,
+    ReportDetail,
+    ReportEvent,
+    ReportPage,
+    ReportPhoto,
+    ReportSummary,
+)
 from app.services import drafts
+
+
+def _event_sk(now: str) -> str:
+    # Timestamps are second-precision; the ULID keeps same-second events
+    # distinct while preserving chronological order.
+    return f"EVENT#{now}#{ULID()}"
+
+
+class ReportNotFound(Exception):
+    pass
 
 
 class DraftIncomplete(Exception):
@@ -63,7 +84,7 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
     }
     event = {
         "PK": f"REPORT#{report_id}",
-        "SK": f"EVENT#{now}",
+        "SK": _event_sk(now),
         "status": "submitted",
         "event_source": "user",
         "created_at": now,
@@ -96,3 +117,153 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
         created_at=now,
         updated_at=now,
     )
+
+
+# --- Reading ----------------------------------------------------------------
+
+StatusFilter = str  # "all" | "open" | "resolved"
+
+
+def _encode_cursor(key: dict | None) -> str | None:
+    if not key:
+        return None
+    return base64.urlsafe_b64encode(json.dumps(key).encode()).decode()
+
+
+def _decode_cursor(cursor: str | None) -> dict | None:
+    if not cursor:
+        return None
+    try:
+        key = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    return key if isinstance(key, dict) else None
+
+
+def _summary(item: dict) -> ReportSummary:
+    photos = item.get("photo_keys", [])
+    loc = item["location"]
+    return ReportSummary(
+        id=item["id"],
+        request_type=item["request_type"],
+        request_reason=item["request_reason"],
+        status=item["status"],
+        address=loc.get("address"),
+        lat=float(loc["lat"]),
+        lng=float(loc["lng"]),
+        supporter_count=int(item.get("supporter_count", 0)),
+        photo_count=len(photos),
+        thumbnail_url=storage.presign_get(photos[0]) if photos else None,
+        nola311_ticket=item.get("nola311_ticket"),
+        created_at=item["created_at"],
+        updated_at=item["updated_at"],
+    )
+
+
+def list_mine(
+    user_sub: str, status: StatusFilter = "all", limit: int = 20, cursor: str | None = None
+) -> ReportPage:
+    kwargs: dict = {
+        "IndexName": "GSI1",
+        "KeyConditionExpression": Key("GSI1PK").eq(f"USER#{user_sub}"),
+        "ScanIndexForward": False,  # newest first
+        "Limit": limit,
+    }
+    if status == "open":
+        kwargs["FilterExpression"] = Attr("status").is_in(list(OPEN_STATUSES))
+    elif status == "resolved":
+        kwargs["FilterExpression"] = Attr("status").eq("resolved")
+    if start := _decode_cursor(cursor):
+        kwargs["ExclusiveStartKey"] = start
+    res = get_table().query(**kwargs)
+    return ReportPage(
+        reports=[_summary(i) for i in res["Items"]],
+        next_cursor=_encode_cursor(res.get("LastEvaluatedKey")),
+    )
+
+
+def _items(report_id: str) -> tuple[dict, list[dict]]:
+    items = get_table().query(KeyConditionExpression=Key("PK").eq(f"REPORT#{report_id}"))["Items"]
+    meta = next((i for i in items if i["SK"] == "META"), None)
+    if meta is None:
+        raise ReportNotFound(report_id)
+    events = sorted((i for i in items if i["SK"].startswith("EVENT#")), key=lambda e: e["SK"])
+    return meta, events
+
+
+def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
+    meta, events = _items(report_id)
+    is_owner = meta.get("user_sub") == viewer_sub
+    loc = meta["location"]
+    return ReportDetail(
+        id=meta["id"],
+        is_owner=is_owner,
+        request_type=meta["request_type"],
+        request_reason=meta["request_reason"],
+        status=meta["status"],
+        location={**loc, "lat": float(loc["lat"]), "lng": float(loc["lng"])},
+        description_html=meta["description_html"],
+        # Photos stay owner-only until AI triage can screen them for people/plates.
+        photos=[ReportPhoto(key=k, url=storage.presign_get(k)) for k in meta.get("photo_keys", [])]
+        if is_owner
+        else [],
+        supporter_count=int(meta.get("supporter_count", 0)),
+        nola311_ticket=meta.get("nola311_ticket"),
+        contact=meta.get("contact") if is_owner else None,
+        events=[
+            ReportEvent(
+                status=e["status"],
+                source=e.get("event_source", "system"),
+                note=e.get("note"),
+                created_at=e["created_at"],
+            )
+            for e in events
+        ],
+        created_at=meta["created_at"],
+        updated_at=meta["updated_at"],
+    )
+
+
+def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:
+    """Record the NOLA 311 request number; the first time, mark it filed."""
+    meta, _ = _items(report_id)
+    if meta.get("user_sub") != user_sub:
+        raise ReportNotFound(report_id)
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    new_status = "filed_with_311" if meta["status"] == "submitted" else meta["status"]
+    table = get_table()
+    items: list[dict] = [
+        {
+            "Update": {
+                "TableName": table.name,
+                "Key": {"PK": f"REPORT#{report_id}", "SK": "META"},
+                "UpdateExpression": "SET nola311_ticket = :t, #s = :s, updated_at = :now",
+                "ConditionExpression": "user_sub = :u",
+                "ExpressionAttributeNames": {"#s": "status"},
+                "ExpressionAttributeValues": {
+                    ":t": ticket,
+                    ":s": new_status,
+                    ":now": now,
+                    ":u": user_sub,
+                },
+            }
+        }
+    ]
+    if meta.get("nola311_ticket") != ticket:
+        items.append(
+            {
+                "Put": {
+                    "TableName": table.name,
+                    "Item": {
+                        "PK": f"REPORT#{report_id}",
+                        "SK": _event_sk(now),
+                        "status": new_status,
+                        "event_source": "user",
+                        "note": f"Filed with NOLA 311 as {ticket}",
+                        "created_at": now,
+                    },
+                }
+            }
+        )
+    table.meta.client.transact_write_items(TransactItems=items)
+    return get_detail(report_id, user_sub)
