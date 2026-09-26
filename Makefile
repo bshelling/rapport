@@ -1,6 +1,10 @@
-.PHONY: local-up local-down local-infra seed api web test e2e lint build-api
+.PHONY: env local-up local-down local-infra seed api web test e2e lint build-api
 
-LOCAL_AWS = AWS_ENDPOINT_URL=http://localhost:4566 AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
+LOCAL_AWS = AWS_ENDPOINT_URL=http://localhost:4566 AWS_DEFAULT_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
+
+## Write web/.env.local and api/.env (Cognito settings from Terraform outputs).
+env:
+	scripts/local-env.sh
 
 ## Start MiniStack and create the table + bucket from the Terraform data module.
 local-up:

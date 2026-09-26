@@ -1,5 +1,3 @@
-import { ApiStatus } from "@/components/api-status";
-
 const services = [
   {
     type: "Roads and Streets",
@@ -23,15 +21,7 @@ const services = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-12 sm:px-8 sm:py-20">
-      <header className="flex items-center justify-between">
-        <span className="text-xl font-bold tracking-tight">
-          <span className="text-brand">Rap</span>
-          <span className="text-accent">port</span>
-        </span>
-        <ApiStatus />
-      </header>
-
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-12 sm:px-8 sm:py-16">
       <section className="flex flex-col gap-6">
         <p className="text-sm font-semibold uppercase tracking-widest text-gold">
           New Orleans
