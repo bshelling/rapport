@@ -42,7 +42,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
       - run: uv sync --frozen
       - name: Lint (Ruff)
-        run: uv run ruff check . && uv run ruff format --check .
+        run: uv run ruff check . ../scripts && uv run ruff format --check . ../scripts
       - name: Tests
         run: uv run pytest -q
       - name: Build Lambda package
@@ -83,6 +83,10 @@ jobs:
           terraform validate
           terraform plan -input=false -lock=false -no-color -var "app_version=${GITHUB_SHA}" -out=tfplan > plan.txt
           summary=$(grep -E "^(Plan:|No changes)" plan.txt || echo "see job log")
+          destroying=$(terraform show -json tfplan | jq -r '[.resource_changes[] | select(.change.actions | index("delete"))] | length')
+          if [ "$destroying" != "0" ]; then
+            summary="$summary ⚠️ $destroying resource(s) deleted or replaced: deploy will refuse this plan without allow_destroy"
+          fi
           echo "summary=$summary" >> "$GITHUB_OUTPUT"
       - name: Comment plan on PR
         if: github.event_name == 'pull_request'

@@ -56,6 +56,8 @@ module "data" {
   source            = "../../modules/data"
   env               = local.env
   photo_bucket_name = "rapport-photos-${local.env}-${local.account_id}"
+  # Browsers upload photos directly to S3 from these origins.
+  cors_allowed_origins = [module.web.site_url, "http://localhost:3000"]
 }
 
 module "auth" {

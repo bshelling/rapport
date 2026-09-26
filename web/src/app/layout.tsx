@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Public_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
+import { ReportProvider } from "@/components/report/report-provider";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
@@ -27,10 +28,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${publicSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <AuthProvider>
-          <div className="mx-auto w-full max-w-5xl px-4 pt-8 sm:px-8 sm:pt-12">
-            <SiteHeader />
-          </div>
-          {children}
+          <ReportProvider>
+            <div className="mx-auto w-full max-w-5xl px-4 pt-8 sm:px-8 sm:pt-12">
+              <SiteHeader />
+            </div>
+            {children}
+          </ReportProvider>
         </AuthProvider>
       </body>
     </html>

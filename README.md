@@ -40,4 +40,6 @@ make test         # pytest + bun test
 make e2e          # Playwright against BASE_URL (default http://localhost:3000)
 ```
 
+Signed-in Playwright tests use the `e2e@example.com` Cognito user (`E2E_EMAIL`, and `E2E_PASSWORD` from SSM `/rapport/prod/e2e/password`). `scripts/cleanup-e2e.py <env>` removes the reports, drafts and photos that user created; the deploy workflow runs it after every production test run.
+
 CI runs these on every pull request and posts the Terraform plan; merging to `main` deploys to production.

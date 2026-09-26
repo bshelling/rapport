@@ -19,7 +19,6 @@ table = json.loads(MODEL.read_text())["DataModel"][0]
 client = boto3.client("dynamodb", region_name="us-east-1")
 items = table["TableData"]
 for i in range(0, len(items), 25):
-    client.batch_write_item(
-        RequestItems={table["TableName"]: [{"PutRequest": {"Item": it}} for it in items[i : i + 25]]}
-    )
+    batch = [{"PutRequest": {"Item": it}} for it in items[i : i + 25]]
+    client.batch_write_item(RequestItems={table["TableName"]: batch})
 print(f"seeded {len(items)} items into {table['TableName']}")

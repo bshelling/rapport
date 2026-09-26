@@ -8,15 +8,14 @@ from app.neighborhoods import NEIGHBORHOODS
 PhoneType = Literal["mobile", "home"]
 
 
-class ProfileUpdate(BaseModel):
-    """Contact info used to prefill service requests (mirrors the NOLA 311 form)."""
+class Contact(BaseModel):
+    """Contact section of the NOLA 311 form."""
 
     first_name: str = Field(min_length=1, max_length=50)
     last_name: str = Field(min_length=1, max_length=50)
     email: EmailStr
     phone: str | None = None
     phone_type: PhoneType | None = None
-    neighborhood: str | None = None
 
     @field_validator("first_name", "last_name")
     @classmethod
@@ -37,6 +36,12 @@ class ProfileUpdate(BaseModel):
         if len(digits) != 10:
             raise ValueError("enter a 10-digit US phone number")
         return digits
+
+
+class ProfileUpdate(Contact):
+    """Contact info used to prefill service requests, plus home neighborhood."""
+
+    neighborhood: str | None = None
 
     @field_validator("neighborhood")
     @classmethod

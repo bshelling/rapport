@@ -57,6 +57,7 @@ variable "public_routes" {
   default = [
     "GET /api/health",
     "GET /api/neighborhoods",
+    "GET /api/service-catalog",
     "GET /api/docs",
     "GET /api/openapi.json",
   ]
@@ -101,6 +102,12 @@ data "aws_iam_policy_document" "api" {
     sid       = "Photos"
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${var.photo_bucket_arn}/*"]
+  }
+  # Lets HeadObject report 404 (not 403) for photos that were never uploaded.
+  statement {
+    sid       = "PhotosList"
+    actions   = ["s3:ListBucket"]
+    resources = [var.photo_bucket_arn]
   }
 }
 

@@ -27,7 +27,7 @@ variable "point_in_time_recovery" {
 }
 
 variable "cors_allowed_origins" {
-  description = "Origins allowed to PUT photos with presigned URLs."
+  description = "Origins allowed to upload photos with presigned POSTs."
   type        = list(string)
   default     = ["*"]
 }
@@ -119,7 +119,7 @@ resource "aws_s3_bucket_public_access_block" "photos" {
 resource "aws_s3_bucket_cors_configuration" "photos" {
   bucket = aws_s3_bucket.photos.id
   cors_rule {
-    allowed_methods = ["PUT", "GET"]
+    allowed_methods = ["POST", "GET"]
     allowed_origins = var.cors_allowed_origins
     allowed_headers = ["*"]
     max_age_seconds = 3000

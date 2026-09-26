@@ -3,15 +3,16 @@ import pytest
 from fastapi.testclient import TestClient
 from moto import mock_aws
 
-from app import auth, db
+from app import auth, db, storage
 from app.config import get_settings
 
 TABLE = "rapport-test"
+BUCKET = "rapport-photos-test"
 
 
 def _reset_caches():
     # Tests may monkeypatch these with plain callables, so clear defensively.
-    for fn in (get_settings, db.get_table, auth._jwks_client):
+    for fn in (get_settings, db.get_table, auth._jwks_client, storage._s3):
         if hasattr(fn, "cache_clear"):
             fn.cache_clear()
 
@@ -26,6 +27,7 @@ def env(monkeypatch):
     monkeypatch.setenv("RAPPORT_ENVIRONMENT", "test")
     monkeypatch.setenv("RAPPORT_AUTH_MODE", "dev")
     monkeypatch.setenv("RAPPORT_TABLE_NAME", TABLE)
+    monkeypatch.setenv("RAPPORT_PHOTO_BUCKET", BUCKET)
     _reset_caches()
     yield
     _reset_caches()
@@ -57,6 +59,7 @@ def table():
                 for g in ("GSI1", "GSI2")
             ],
         )
+        boto3.client("s3").create_bucket(Bucket=BUCKET)
         yield boto3.resource("dynamodb").Table(TABLE)
 
 
