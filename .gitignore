@@ -1,0 +1,40 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# node / bun
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+.terraform.lock.hcl.bak
+
+# build artifacts
+dist/
+build/
+*.zip
+
+# playwright
+playwright-report/
+test-results/
