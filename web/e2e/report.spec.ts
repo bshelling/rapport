@@ -106,6 +106,26 @@ test.describe("report flow", () => {
     );
   });
 
+  test("a slow profile prefill doesn't erase what the resident typed", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await signInFromHeader(page);
+    await page.route("**/api/me", async (route) => {
+      if (route.request().method() === "GET")
+        await new Promise((r) => setTimeout(r, 2000));
+      await route.continue();
+    });
+    await openReport(page);
+    await stepOne(page, "Drainage", "Street Flooding");
+    const form = page.getByRole("form", { name: "Contact info" });
+    await form.getByLabel("First name").fill("Typed-Before-Prefill");
+    await page.waitForTimeout(2500); // the prefill lands here
+    await expect(form.getByLabel("First name")).toHaveValue(
+      "Typed-Before-Prefill",
+    );
+  });
+
   test("draft resumes after closing the dialog", async ({ page }) => {
     await page.goto("/");
     await signInFromHeader(page);

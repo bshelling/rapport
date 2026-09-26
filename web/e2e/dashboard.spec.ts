@@ -62,11 +62,13 @@ test.describe("dashboard and report details", () => {
       page.getByRole("region", { name: "NOLA 311" }).getByRole("alert"),
     ).toContainText("like 2026-1322736");
 
-    const number = `2026-${String(Date.now()).slice(-7)}`;
+    // Year 2099 can't match a real City request (the API verifies tickets live).
+    const number = `2099-${String(Date.now()).slice(-7)}`;
     await ticket.fill(number);
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText(`Filed as request #${number}.`)).toBeVisible();
     await expect(page.getByTestId("status-badge")).toHaveText("Filed with 311");
+    await expect(page.getByTestId("ticket-verified")).toContainText("tonight");
     const timeline = page.getByTestId("timeline");
     await expect(timeline.getByRole("listitem")).toHaveCount(2);
     await expect(timeline).toContainText(`Filed with NOLA 311 as ${number}`);

@@ -135,6 +135,10 @@ output "map_key_name" {
   value = module.maps.key_name
 }
 
+output "ingest_function_name" {
+  value = module.api.ingest_function_name
+}
+
 output "table_name" {
   value = module.data.table_name
 }

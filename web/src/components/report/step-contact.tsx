@@ -60,13 +60,18 @@ export function StepContact({
         setProfile(me);
         setSaveToProfile(!me.complete);
         const c = draft.contact ?? me;
-        reset({
-          first_name: c.first_name ?? "",
-          last_name: c.last_name ?? "",
-          email: c.email ?? "",
-          phone: formatPhone(c.phone),
-          phone_type: c.phone_type ?? "",
-        });
+        // The form is usable before the profile arrives; never overwrite
+        // anything the resident already typed.
+        reset(
+          {
+            first_name: c.first_name ?? "",
+            last_name: c.last_name ?? "",
+            email: c.email ?? "",
+            phone: formatPhone(c.phone),
+            phone_type: c.phone_type ?? "",
+          },
+          { keepDirtyValues: true },
+        );
       })
       .catch(() =>
         setError("Couldn't load your profile; you can still fill this in."),

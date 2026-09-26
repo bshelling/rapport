@@ -84,6 +84,7 @@ variable "public_routes" {
 locals {
   name        = "rapport-api-${var.env}"
   worker_name = "rapport-worker-${var.env}"
+  ingest_name = "rapport-ingest-${var.env}"
 }
 
 data "aws_caller_identity" "current" {}
@@ -181,6 +182,7 @@ resource "aws_lambda_function" "api" {
       RAPPORT_WORKER_FUNCTION = local.worker_name
       RAPPORT_AI_MODE         = var.ai_mode
       RAPPORT_GEO_MODE        = "live"
+      RAPPORT_NOLA311_MODE    = "live"
     }
   }
 
@@ -288,6 +290,104 @@ resource "aws_lambda_function_event_invoke_config" "worker" {
   maximum_event_age_in_seconds = 300
 }
 
+# --- Ingest: nightly NOLA 311 import -------------------------------------------------
+
+resource "aws_iam_role" "ingest" {
+  name               = local.ingest_name
+  assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "ingest_logs" {
+  role       = aws_iam_role.ingest.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "ingest" {
+  statement {
+    sid = "Table"
+    actions = [
+      "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+      "dynamodb:BatchWriteItem", "dynamodb:TransactWriteItems", "dynamodb:Query",
+    ]
+    resources = [var.table_arn, "${var.table_arn}/index/*"]
+  }
+  statement {
+    sid       = "TypeSafeKey"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${var.typesafe_key_param}"]
+  }
+  statement {
+    sid       = "DecryptViaSsm"
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "ingest" {
+  name   = local.ingest_name
+  role   = aws_iam_role.ingest.id
+  policy = data.aws_iam_policy_document.ingest.json
+}
+
+resource "aws_cloudwatch_log_group" "ingest" {
+  name              = "/aws/lambda/${local.ingest_name}"
+  retention_in_days = 30
+}
+
+resource "aws_lambda_function" "ingest" {
+  function_name    = local.ingest_name
+  role             = aws_iam_role.ingest.arn
+  runtime          = "python3.12"
+  architectures    = ["arm64"]
+  handler          = "app.ingest.handler"
+  filename         = var.zip_path
+  source_code_hash = filebase64sha256(var.zip_path)
+  memory_size      = 1024
+  timeout          = 900
+
+  environment {
+    variables = {
+      RAPPORT_ENVIRONMENT        = var.env
+      RAPPORT_VERSION            = var.app_version
+      RAPPORT_TABLE_NAME         = var.table_name
+      RAPPORT_AI_MODE            = var.ai_mode
+      RAPPORT_TYPESAFE_KEY_PARAM = var.typesafe_key_param
+      RAPPORT_NOLA311_MODE       = "live"
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.ingest, aws_iam_role_policy_attachment.ingest_logs]
+}
+
+resource "aws_lambda_function_event_invoke_config" "ingest" {
+  function_name          = aws_lambda_function.ingest.function_name
+  maximum_retry_attempts = 0
+}
+
+# 08:00 UTC = 3 am in New Orleans in summer (2 am in winter); data.nola.gov refreshes overnight.
+resource "aws_cloudwatch_event_rule" "ingest_nightly" {
+  name                = "${local.ingest_name}-nightly"
+  schedule_expression = "cron(0 8 * * ? *)"
+}
+
+resource "aws_cloudwatch_event_target" "ingest_nightly" {
+  rule = aws_cloudwatch_event_rule.ingest_nightly.name
+  arn  = aws_lambda_function.ingest.arn
+}
+
+resource "aws_lambda_permission" "ingest_schedule" {
+  statement_id  = "AllowNightlySchedule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.ingest_nightly.arn
+}
+
 resource "aws_apigatewayv2_api" "api" {
   name          = local.name
   protocol_type = "HTTP"
@@ -354,6 +454,10 @@ output "api_endpoint" {
 
 output "function_name" {
   value = aws_lambda_function.api.function_name
+}
+
+output "ingest_function_name" {
+  value = aws_lambda_function.ingest.function_name
 }
 
 output "worker_function_name" {

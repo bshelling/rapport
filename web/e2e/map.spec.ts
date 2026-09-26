@@ -87,3 +87,19 @@ test.describe("maps in the report flow", () => {
     ).not.toHaveValue("");
   });
 });
+
+test("City 311 requests can be shown on the map", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  await expect(page.getByTestId("public-map").locator("canvas")).toBeVisible();
+  await page.getByTestId("toggle-city").check();
+  await expect(page.getByTestId("city-count")).toHaveText(/\(\d+\+? in view\)/);
+  await expect(page.getByTestId("city-pin").first()).toBeAttached({
+    timeout: 15_000,
+  });
+  await page.getByTestId("public-map").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: `screenshots/map-city-${testInfo.project.name}.png`,
+  });
+});

@@ -57,6 +57,11 @@ class ReportPhoto(BaseModel):
     url: str
 
 
+class SuggestedTicket(BaseModel):
+    ticket: str
+    probability: float
+
+
 class ReportAI(BaseModel):
     """AI assessment captured at submission (Claude vision + Jev)."""
 
@@ -85,6 +90,8 @@ class ReportDetail(BaseModel):
     supported_by_me: bool = False
     supporter_count: int
     nola311_ticket: str | None
+    nola311_verified: bool = False
+    suggested_ticket: SuggestedTicket | None = None
     contact: Contact | None
     events: list[ReportEvent]
     created_at: str
@@ -97,11 +104,15 @@ class ReportPage(BaseModel):
 
 
 class TicketUpdate(BaseModel):
-    nola311_ticket: str
+    nola311_ticket: str | None = None
+    # "No, that's not my request" for an auto-suggested City ticket.
+    dismiss_ticket_suggestion: bool = False
 
     @field_validator("nola311_ticket")
     @classmethod
-    def ticket_format(cls, v: str) -> str:
+    def ticket_format(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         v = v.strip()
         if not TICKET_RE.match(v):
             raise ValueError("enter the NOLA 311 request number, e.g. 2026-1322736")

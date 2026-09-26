@@ -8,6 +8,7 @@ import { Nola311Panel } from "@/components/nola311-panel";
 import { SignInPrompt } from "@/components/sign-in-prompt";
 import { StatusBadge } from "@/components/status-badge";
 import { SupportButton } from "@/components/support-button";
+import { TicketSuggestion } from "@/components/ticket-suggestion";
 import { ApiError, getReport, type ReportDetail } from "@/lib/api";
 import {
   formatDate,
@@ -209,6 +210,7 @@ function ReportView() {
         </div>
 
         <aside className="flex flex-col gap-6">
+          <TicketSuggestion report={report} onUpdated={setReport} />
           {report.is_owner && (
             <Nola311Panel report={report} onUpdated={setReport} />
           )}

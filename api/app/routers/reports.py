@@ -40,9 +40,13 @@ def get_report(report_id: str, user: CurrentUserDep) -> ReportDetail:
 @router.patch("/{report_id}")
 def update_report(report_id: str, body: TicketUpdate, user: CurrentUserDep) -> ReportDetail:
     try:
-        return reports.set_ticket(report_id, user.sub, body.nola311_ticket)
+        if body.nola311_ticket:
+            return reports.set_ticket(report_id, user.sub, body.nola311_ticket)
+        if body.dismiss_ticket_suggestion:
+            return reports.dismiss_ticket_suggestion(report_id, user.sub)
     except reports.ReportNotFound:
         raise _not_found() from None
+    raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Nothing to update")
 
 
 @router.post("/{report_id}/support", status_code=status.HTTP_201_CREATED)

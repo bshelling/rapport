@@ -4,6 +4,7 @@ from app.db import get_table
 from app.models.map import MapReport, MapReports
 
 MAX_PINS = 1000
+MAX_CITY_PINS = 1500
 # ~11 m: enough to find the pothole, not enough to pinpoint a doorstep.
 COORD_DECIMALS = 4
 
@@ -17,11 +18,11 @@ def _in_bbox(lat: float, lng: float, bbox: BBox | None) -> bool:
     return west <= lng <= east and south <= lat <= north
 
 
-def public_reports(bbox: BBox | None = None) -> MapReports:
+def _pins(partition: str, bbox: BBox | None, limit: int) -> tuple[list[MapReport], bool]:
     table = get_table()
     kwargs: dict = {
         "IndexName": "GSI3",
-        "KeyConditionExpression": Key("GSI3PK").eq("MAP"),
+        "KeyConditionExpression": Key("GSI3PK").eq(partition),
         "ScanIndexForward": False,
     }
     pins: list[MapReport] = []
@@ -36,6 +37,7 @@ def public_reports(bbox: BBox | None = None) -> MapReports:
             pins.append(
                 MapReport(
                     id=item["id"],
+                    source=item.get("source", "rapport"),
                     request_type=item["request_type"],
                     request_reason=item["request_reason"],
                     status=item["status"],
@@ -45,9 +47,19 @@ def public_reports(bbox: BBox | None = None) -> MapReports:
                     created_at=item["created_at"],
                 )
             )
-            if len(pins) >= MAX_PINS:
-                return MapReports(reports=pins, truncated=True)
+            if len(pins) >= limit:
+                return pins, True
         if "LastEvaluatedKey" not in res:
             break
         kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
-    return MapReports(reports=pins, truncated=truncated)
+    return pins, truncated
+
+
+def public_reports(bbox: BBox | None = None, include_city: bool = False) -> MapReports:
+    reports, truncated = _pins("MAP", bbox, MAX_PINS)
+    city: list[MapReport] = []
+    if include_city:
+        # Open City 311 requests (newest first); the City has thousands open.
+        city, city_truncated = _pins("MAP311", bbox, MAX_CITY_PINS)
+        truncated = truncated or city_truncated
+    return MapReports(reports=reports, city=city, truncated=truncated)

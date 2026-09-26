@@ -116,6 +116,7 @@ def test_public_map_is_anonymous_and_rounded(client):
     assert (pin["lat"], pin["lng"]) == (29.9212, -90.1027)
     assert set(pin) == {
         "id",
+        "source",
         "request_type",
         "request_reason",
         "status",

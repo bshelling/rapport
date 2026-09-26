@@ -7,7 +7,8 @@ from boto3.dynamodb.conditions import Attr, Key
 from ulid import ULID
 
 from app import storage
-from app.db import get_table
+from app.config import get_settings
+from app.db import from_dynamo, get_table
 from app.geo import geohash
 from app.models.report import (
     OPEN_STATUSES,
@@ -243,6 +244,8 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         ai=_ai(meta.get("ai")),
         supporter_count=int(meta.get("supporter_count", 0)),
         nola311_ticket=meta.get("nola311_ticket"),
+        nola311_verified=bool(meta.get("nola311_verified", False)),
+        suggested_ticket=from_dynamo(meta.get("suggested_ticket")) if is_owner else None,
         contact=meta.get("contact") if is_owner else None,
         events=[
             ReportEvent(
@@ -259,10 +262,22 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
 
 
 def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:
-    """Record the NOLA 311 request number; the first time, mark it filed."""
+    """Record the NOLA 311 request number; the first time, mark it filed.
+
+    The number is checked against the City's open data. A match syncs the status right
+    away; no match is still accepted (the dataset refreshes daily) and marked unverified.
+    """
+    from app.services import ingest, nola311  # avoid import cycles
+
     meta, _ = _items(report_id)
     if meta.get("user_sub") != user_sub:
         raise ReportNotFound(report_id)
+    city = None
+    if get_settings().nola311_mode == "live":
+        try:
+            city = nola311.fetch_ticket(ticket)
+        except Exception:  # City API down: accept, verify tonight
+            city = None
     now = datetime.now(UTC).isoformat(timespec="seconds")
     new_status = "filed_with_311" if meta["status"] == "submitted" else meta["status"]
     table = get_table()
@@ -271,19 +286,38 @@ def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:
             "Update": {
                 "TableName": table.name,
                 "Key": {"PK": f"REPORT#{report_id}", "SK": "META"},
-                "UpdateExpression": "SET nola311_ticket = :t, #s = :s, updated_at = :now",
+                "UpdateExpression": "SET nola311_ticket = :t, nola311_verified = :v, #s = :s, "
+                "updated_at = :now REMOVE suggested_ticket",
                 "ConditionExpression": "user_sub = :u",
                 "ExpressionAttributeNames": {"#s": "status"},
                 "ExpressionAttributeValues": {
                     ":t": ticket,
+                    ":v": city is not None,
                     ":s": new_status,
                     ":now": now,
                     ":u": user_sub,
                 },
             }
-        }
+        },
+        # Pointer so the nightly import can find reports by ticket.
+        {
+            "Put": {
+                "TableName": table.name,
+                "Item": {"PK": f"TICKET#{ticket}", "SK": f"REPORT#{report_id}"},
+            }
+        },
     ]
-    if meta.get("nola311_ticket") != ticket:
+    previous = meta.get("nola311_ticket")
+    if previous and previous != ticket:
+        items.append(
+            {
+                "Delete": {
+                    "TableName": table.name,
+                    "Key": {"PK": f"TICKET#{previous}", "SK": f"REPORT#{report_id}"},
+                }
+            }
+        )
+    if previous != ticket:
         items.append(
             {
                 "Put": {
@@ -300,6 +334,22 @@ def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:
             }
         )
     table.meta.client.transact_write_items(TransactItems=items)
+    if city is not None:
+        item = nola311.to_item(city)
+        if item:
+            ingest.apply_city_status(report_id, from_dynamo(item))
+    return get_detail(report_id, user_sub)
+
+
+def dismiss_ticket_suggestion(report_id: str, user_sub: str) -> ReportDetail:
+    meta, _ = _items(report_id)
+    if meta.get("user_sub") != user_sub:
+        raise ReportNotFound(report_id)
+    get_table().update_item(
+        Key={"PK": f"REPORT#{report_id}", "SK": "META"},
+        UpdateExpression="SET ticket_suggestion_dismissed = :t REMOVE suggested_ticket",
+        ExpressionAttributeValues={":t": True},
+    )
     return get_detail(report_id, user_sub)
 
 
