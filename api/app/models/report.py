@@ -82,6 +82,7 @@ class ReportDetail(BaseModel):
     photos: list[ReportPhoto]
     photo_public: bool = False
     ai: ReportAI | None = None
+    supported_by_me: bool = False
     supporter_count: int
     nola311_ticket: str | None
     contact: Contact | None
@@ -105,3 +106,13 @@ class TicketUpdate(BaseModel):
         if not TICKET_RE.match(v):
             raise ValueError("enter the NOLA 311 request number, e.g. 2026-1322736")
         return v
+
+
+class SupportRequest(BaseModel):
+    # When the +1 comes from the report flow, the draft (and its photo) is folded in.
+    draft_id: str | None = None
+
+
+class SupportResult(BaseModel):
+    report_id: str
+    supporter_count: int

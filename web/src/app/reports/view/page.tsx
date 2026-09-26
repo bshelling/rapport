@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth-provider";
 import { Nola311Panel } from "@/components/nola311-panel";
 import { SignInPrompt } from "@/components/sign-in-prompt";
 import { StatusBadge } from "@/components/status-badge";
+import { SupportButton } from "@/components/support-button";
 import { ApiError, getReport, type ReportDetail } from "@/lib/api";
 import {
   formatDate,
@@ -90,6 +91,21 @@ function ReportView() {
           {report.request_type} · Reported {formatDate(report.created_at)} · Ref{" "}
           {shortRef(report.id)}
         </p>
+        <p className="text-sm text-muted" data-testid="supporter-count">
+          {report.supporter_count === 0
+            ? "No +1s yet"
+            : `${report.supporter_count} neighbor${report.supporter_count === 1 ? "" : "s"} +1`}
+        </p>
+        <SupportButton
+          report={report}
+          onSupported={(count) =>
+            setReport({
+              ...report,
+              supporter_count: count,
+              supported_by_me: true,
+            })
+          }
+        />
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">

@@ -239,6 +239,7 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         if is_owner or meta.get("photo_public")
         else [],
         photo_public=bool(meta.get("photo_public", False)),
+        supported_by_me=False if is_owner else supported_by(report_id, viewer_sub),
         ai=_ai(meta.get("ai")),
         supporter_count=int(meta.get("supporter_count", 0)),
         nola311_ticket=meta.get("nola311_ticket"),
@@ -300,3 +301,91 @@ def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:
         )
     table.meta.client.transact_write_items(TransactItems=items)
     return get_detail(report_id, user_sub)
+
+
+# --- Supporters ("+1") --------------------------------------------------------------
+
+
+class CannotSupport(Exception):
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
+def support(report_id: str, user_sub: str, draft_id: str | None = None) -> int:
+    """Add the user's +1 (once), optionally with their draft's photo; returns the new count."""
+    meta, _ = _items(report_id)
+    if meta.get("user_sub") == user_sub:
+        raise CannotSupport("You reported this one.")
+    if meta.get("status") not in OPEN_STATUSES:
+        raise CannotSupport("This report is closed.")
+
+    photo_key = source_key = None
+    photo_public = False
+    draft = None
+    if draft_id:
+        draft = drafts.get(draft_id, user_sub, with_urls=False)  # raises DraftNotFound
+        uploaded = [p for p in draft.photos if storage.exists(p.key)]
+        if uploaded:
+            source_key = uploaded[0].key
+            photo_key = f"reports/{report_id}/support/{uploaded[0].id}.jpg"
+            photo_public = (
+                draft.triage is not None
+                and draft.triage.status == "done"
+                and not draft.photos_private
+            )
+
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    table = get_table()
+    support_item = {
+        "PK": f"REPORT#{report_id}",
+        "SK": f"SUPPORT#{user_sub}",
+        "user_sub": user_sub,
+        "created_at": now,
+        "photo_public": photo_public,
+    }
+    if photo_key:
+        support_item["photo_key"] = photo_key
+    items: list[dict] = [
+        {
+            "Put": {
+                "TableName": table.name,
+                "Item": support_item,
+                "ConditionExpression": "attribute_not_exists(PK)",
+            }
+        },
+        {
+            "Update": {
+                "TableName": table.name,
+                "Key": {"PK": f"REPORT#{report_id}", "SK": "META"},
+                "UpdateExpression": "ADD supporter_count :one SET updated_at = :now",
+                "ExpressionAttributeValues": {":one": 1, ":now": now},
+            }
+        },
+    ]
+    if draft_id:
+        items.append(
+            {
+                "Delete": {
+                    "TableName": table.name,
+                    "Key": {"PK": f"DRAFT#{draft_id}", "SK": "META"},
+                    "ConditionExpression": "user_sub = :u",
+                    "ExpressionAttributeValues": {":u": user_sub},
+                }
+            }
+        )
+    try:
+        table.meta.client.transact_write_items(TransactItems=items)
+    except table.meta.client.exceptions.TransactionCanceledException as exc:
+        codes = [r.get("Code") for r in exc.response.get("CancellationReasons", [])]
+        if codes and codes[0] == "ConditionalCheckFailed":
+            raise CannotSupport("You already added your +1.") from exc
+        raise
+    if source_key and photo_key:
+        storage.move(source_key, photo_key)
+    return int(meta.get("supporter_count", 0)) + 1
+
+
+def supported_by(report_id: str, user_sub: str) -> bool:
+    item = get_table().get_item(Key={"PK": f"REPORT#{report_id}", "SK": f"SUPPORT#{user_sub}"})
+    return "Item" in item

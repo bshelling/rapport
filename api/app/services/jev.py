@@ -91,10 +91,22 @@ def _option(reason: str, probability: float) -> ReasonOption:
     )
 
 
+def _same_issue_state(new: dict, existing: dict) -> str:
+    return json.dumps({"new_report": new, "existing_report": existing})
+
+
+SAME_ISSUE = Noul(
+    instructions="The new report and the existing report describe the same physical problem "
+    "at the same spot (not just a similar problem nearby).",
+)
+
+
 class Jev(Protocol):
     def classify(
         self, obs: Observation, selected_reason: str | None, description: str | None
     ) -> JevResult: ...
+
+    def same_issue(self, new: dict, existing: dict) -> float: ...
 
 
 class TypeSafeJev:
@@ -105,6 +117,10 @@ class TypeSafeJev:
             timeout=15.0,
             retry=RetryPolicy(max_retries=2, backoff_max=1.0, timeout=15.0),
         )
+
+    def same_issue(self, new, existing):
+        res = self.client.system_one(_same_issue_state(new, existing), {"same_issue": SAME_ISSUE})
+        return res.nouls["same_issue"].noul
 
     def classify(self, obs, selected_reason, description):
         res = self.client.system_one(
@@ -134,6 +150,11 @@ class TypeSafeJev:
 
 
 class FakeJev:
+    def same_issue(self, new, existing):
+        # Same reason within 30 m reads as the same problem.
+        close = existing.get("distance_m", 999) <= 30
+        return 0.9 if close and new.get("reason") == existing.get("reason") else 0.2
+
     def classify(self, obs, selected_reason, description):
         return JevResult(
             suggested=_option("Catch Basin Clogged", 0.91),

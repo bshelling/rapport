@@ -7,11 +7,15 @@ import { useAuth } from "@/components/auth-provider";
 import { StepContact } from "@/components/report/step-contact";
 import { StepDescribe } from "@/components/report/step-describe";
 import { StepType } from "@/components/report/step-type";
-import { SubmittedReport } from "@/components/report/submitted";
+import {
+  SubmittedReport,
+  SupportedReport,
+} from "@/components/report/submitted";
 import {
   ApiError,
   createDraft,
   type Draft,
+  duplicateCheckKey,
   getDraft,
   type Report,
 } from "@/lib/api";
@@ -34,6 +38,20 @@ function storeDraftId(id: string | null) {
   } catch {
     // storage unavailable; the draft just won't resume after a reload
   }
+}
+
+/** True once background AI work for the draft's current state has finished. */
+function settled(d: Draft): boolean {
+  const triageDone =
+    d.photos.length === 0 ||
+    d.triage?.status === "done" ||
+    d.triage?.status === "error";
+  const dupesDone =
+    !d.location ||
+    !d.request_type ||
+    d.duplicates?.checked_for ===
+      duplicateCheckKey(d.request_type, d.location.lat, d.location.lng);
+  return triageDone && dupesDone;
 }
 
 async function loadOrCreateDraft(): Promise<Draft> {
@@ -73,9 +91,7 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
       try {
         const latest = await getDraft(draftId);
         setDraft(latest);
-        const status = latest.triage?.status;
-        if (status === "done" || status === "error" || tries >= 30)
-          setWatching(false);
+        if (settled(latest) || tries >= 30) setWatching(false);
       } catch {
         if (tries >= 30) setWatching(false);
       }
@@ -112,6 +128,11 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
     storeDraftId(null);
     setReport(r);
   }, []);
+  const [supported, setSupported] = useState<string | null>(null);
+  const onSupported = useCallback((reportId: string) => {
+    storeDraftId(null);
+    setSupported(reportId);
+  }, []);
 
   const startOver = useCallback(() => {
     setReport(null);
@@ -123,7 +144,11 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-8">
         <Dialog.Title className="text-lg font-semibold">
-          {report ? "Report submitted" : "Report an issue"}
+          {report
+            ? "Report submitted"
+            : supported
+              ? "Thanks!"
+              : "Report an issue"}
         </Dialog.Title>
         <Dialog.Close
           className="rounded-full p-2 text-muted hover:bg-brand/10"
@@ -145,7 +170,7 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
         </Dialog.Close>
       </div>
 
-      {!report && auth.status === "signedIn" && draft && (
+      {!report && !supported && auth.status === "signedIn" && draft && (
         <Progress step={step} />
       )}
 
@@ -191,6 +216,8 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
             onClose={onClose}
             onAnother={startOver}
           />
+        ) : supported ? (
+          <SupportedReport reportId={supported} onClose={onClose} />
         ) : (
           draft && (
             <AnimatePresence mode="wait" custom={direction} initial={false}>
@@ -231,6 +258,7 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
                     onSaved={setDraft}
                     onBack={() => goTo(2)}
                     onSubmitted={onSubmitted}
+                    onSupported={onSupported}
                     watching={watching}
                     watch={watch}
                   />

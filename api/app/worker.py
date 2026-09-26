@@ -2,12 +2,16 @@
 
 import logging
 
-from app.services import triage
+from app.services import duplicates, triage
 
 logging.getLogger().setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-TASKS = {"triage": triage.run, "reclassify": triage.reclassify}
+TASKS = {
+    "triage": triage.run,
+    "reclassify": triage.reclassify,
+    "duplicates": duplicates.run,
+}
 
 
 def handle(task: str, draft_id: str) -> None:

@@ -74,3 +74,39 @@ export function SubmittedReport({
     </div>
   );
 }
+
+export function SupportedReport({
+  reportId,
+  onClose,
+}: {
+  reportId: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="flex flex-col items-center gap-4 px-6 py-10 text-center"
+      data-testid="report-supported"
+    >
+      <motion.div
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 18 }}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-2xl font-bold text-background"
+        aria-hidden="true"
+      >
+        +1
+      </motion.div>
+      <p className="text-xl font-semibold">Thanks, your +1 was added.</p>
+      <p className="max-w-sm text-muted">
+        Neighbors backing the same report help the City see what matters most.
+      </p>
+      <Link
+        href={`/reports/view/?id=${reportId}`}
+        onClick={onClose}
+        className="mt-2 rounded-full bg-brand px-6 py-2 font-semibold text-background"
+      >
+        View the report
+      </Link>
+    </div>
+  );
+}

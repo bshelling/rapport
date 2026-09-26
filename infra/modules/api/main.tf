@@ -205,6 +205,12 @@ data "aws_iam_policy_document" "worker" {
     actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
     resources = [var.table_arn]
   }
+  # Duplicate detection looks up nearby reports by geohash cell (GSI2).
+  statement {
+    sid       = "NearbyReports"
+    actions   = ["dynamodb:Query"]
+    resources = ["${var.table_arn}/index/GSI2"]
+  }
   statement {
     sid       = "ReadPhotos"
     actions   = ["s3:GetObject"]

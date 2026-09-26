@@ -39,6 +39,17 @@ def patch_draft(
     # A new reason changes "does the photo match?"; re-run the cheap classifier only.
     if draft.request_reason != before.request_reason and draft.triage:
         dispatch("reclassify", draft_id, background)
+    # A new spot or type means different neighbors: look for duplicates again.
+    moved = draft.location and (
+        before.location is None
+        or (draft.location.lat, draft.location.lng) != (before.location.lat, before.location.lng)
+    )
+    if (
+        draft.location
+        and draft.request_type
+        and (moved or draft.request_type != before.request_type)
+    ):
+        dispatch("duplicates", draft_id, background)
     return draft
 
 

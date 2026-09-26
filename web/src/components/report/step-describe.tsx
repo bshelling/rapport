@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LocationPicker } from "@/components/map/location-picker";
+import { DuplicatesPanel } from "@/components/report/duplicates";
 import { InsightsPanel } from "@/components/report/insights";
 import { RichText } from "@/components/report/rich-text";
 import { StepNav } from "@/components/report/step-nav";
@@ -33,6 +34,7 @@ export function StepDescribe({
   onSaved,
   onBack,
   onSubmitted,
+  onSupported,
   watching,
   watch,
 }: {
@@ -40,6 +42,7 @@ export function StepDescribe({
   onSaved: (d: Draft) => void;
   onBack: () => void;
   onSubmitted: (r: Report) => void;
+  onSupported: (reportId: string) => void;
   watching: boolean;
   watch: () => void;
 }) {
@@ -122,6 +125,33 @@ export function StepDescribe({
     onGps,
     onUploaded,
   });
+
+  // Save the pin as it moves so the duplicate check can run in the background.
+  const lat = location?.lat;
+  const lng = location?.lng;
+  const source = location?.source;
+  useEffect(() => {
+    if (lat === undefined || lng === undefined || !source) return;
+    if (draft.location?.lat === lat && draft.location?.lng === lng) return;
+    const t = setTimeout(() => {
+      patchDraft(draft.id, { location: { lat, lng, source, address: null } })
+        .then((d) => {
+          onSaved(d);
+          watch();
+        })
+        .catch(() => undefined); // submit saves it again
+    }, 600);
+    return () => clearTimeout(t);
+  }, [
+    lat,
+    lng,
+    source,
+    draft.id,
+    draft.location?.lat,
+    draft.location?.lng,
+    onSaved,
+    watch,
+  ]);
 
   const switchReason = async (option: ReasonOption) => {
     if (!option.request_type) return;
@@ -233,6 +263,8 @@ export function StepDescribe({
           />
         </div>
       </section>
+
+      <DuplicatesPanel draft={draft} onSupported={onSupported} />
 
       <section className="mt-6" aria-labelledby={`${id}-photos`}>
         <h3 id={`${id}-photos`} className="font-medium">
