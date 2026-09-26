@@ -75,6 +75,7 @@ variable "public_routes" {
     "GET /api/health",
     "GET /api/neighborhoods",
     "GET /api/service-catalog",
+    "GET /api/map/reports",
     "GET /api/docs",
     "GET /api/openapi.json",
   ]
@@ -129,6 +130,15 @@ data "aws_iam_policy_document" "api" {
     actions   = ["lambda:InvokeFunction"]
     resources = ["arn:aws:lambda:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:function:${local.worker_name}"]
   }
+  statement {
+    sid = "PlaceSearch"
+    actions = [
+      "geo-places:Autocomplete",
+      "geo-places:GetPlace",
+      "geo-places:ReverseGeocode",
+    ]
+    resources = ["arn:aws:geo-places:${data.aws_region.current.region}::provider/default"]
+  }
   # Lets HeadObject report 404 (not 403) for photos that were never uploaded.
   statement {
     sid       = "PhotosList"
@@ -170,6 +180,7 @@ resource "aws_lambda_function" "api" {
       RAPPORT_WORKER_MODE     = "lambda"
       RAPPORT_WORKER_FUNCTION = local.worker_name
       RAPPORT_AI_MODE         = var.ai_mode
+      RAPPORT_GEO_MODE        = "live"
     }
   }
 

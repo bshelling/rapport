@@ -64,6 +64,10 @@ jobs:
           echo "user_pool_id=$(terraform output -raw user_pool_id)" >> "$GITHUB_OUTPUT"
           echo "user_pool_client_id=$(terraform output -raw user_pool_client_id)" >> "$GITHUB_OUTPUT"
           echo "auth_domain=$(terraform output -raw auth_domain)" >> "$GITHUB_OUTPUT"
+          # Browser map key (restricted to tile reads from our origins).
+          key=$(aws location describe-key --key-name "$(terraform output -raw map_key_name)" --query Key --output text)
+          echo "::add-mask::$key"
+          echo "map_api_key=$key" >> "$GITHUB_OUTPUT"
 
       - name: Build web
         working-directory: web
@@ -71,6 +75,7 @@ jobs:
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ steps.tf.outputs.user_pool_id }}
           NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ steps.tf.outputs.user_pool_client_id }}
           NEXT_PUBLIC_COGNITO_DOMAIN: ${{ steps.tf.outputs.auth_domain }}
+          NEXT_PUBLIC_MAP_API_KEY: ${{ steps.tf.outputs.map_api_key }}
         run: |
           bun install --frozen-lockfile
           bun run build
@@ -82,7 +87,10 @@ jobs:
           aws s3 sync _next "s3://${{ steps.tf.outputs.site_bucket }}/_next" \
             --delete --cache-control "public,max-age=31536000,immutable"
           aws s3 sync . "s3://${{ steps.tf.outputs.site_bucket }}" \
-            --delete --exclude "_next/*" --cache-control "public,max-age=0,must-revalidate"
+            --delete --exclude "_next/*" --exclude "*.mjs" --cache-control "public,max-age=0,must-revalidate"
+          # ES module workers (MapLibre) must be served with a JavaScript MIME type.
+          aws s3 sync . "s3://${{ steps.tf.outputs.site_bucket }}" --exclude "*" --include "*.mjs" \
+            --content-type "text/javascript" --cache-control "public,max-age=0,must-revalidate"
           aws cloudfront create-invalidation \
             --distribution-id "${{ steps.tf.outputs.distribution_id }}" --paths "/*" >/dev/null
 

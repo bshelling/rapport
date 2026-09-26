@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    awscc = {
+      source  = "hashicorp/awscc"
+      version = "~> 1.0"
+    }
   }
 
   backend "s3" {
@@ -50,6 +54,10 @@ provider "aws" {
   }
 }
 
+provider "awscc" {
+  region = "us-east-1"
+}
+
 data "aws_caller_identity" "current" {}
 
 module "data" {
@@ -65,6 +73,13 @@ module "auth" {
   env           = local.env
   domain_prefix = "rapport-nola-${local.env}"
   app_urls      = [module.web.site_url, "http://localhost:3000"]
+}
+
+module "maps" {
+  source          = "../../modules/maps"
+  env             = local.env
+  region          = "us-east-1"
+  allowed_origins = [module.web.site_url, "http://localhost:3000"]
 }
 
 module "api" {
@@ -114,6 +129,10 @@ output "user_pool_client_id" {
 
 output "auth_domain" {
   value = module.auth.domain
+}
+
+output "map_key_name" {
+  value = module.maps.key_name
 }
 
 output "table_name" {

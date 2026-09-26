@@ -1,3 +1,4 @@
+import { PublicMap } from "@/components/map/public-map";
 import { ReportButton } from "@/components/report-button";
 
 const services = [
@@ -39,6 +40,8 @@ export default function Home() {
           <ReportButton />
         </div>
       </section>
+
+      <PublicMap />
 
       <section
         className="grid gap-4 sm:grid-cols-2"

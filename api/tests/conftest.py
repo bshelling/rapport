@@ -38,7 +38,7 @@ def table():
     """DynamoDB table shaped like infra/modules/data."""
     with mock_aws():
         ddb = boto3.client("dynamodb")
-        keys = ["PK", "SK", "GSI1PK", "GSI1SK", "GSI2PK", "GSI2SK"]
+        keys = ["PK", "SK", "GSI1PK", "GSI1SK", "GSI2PK", "GSI2SK", "GSI3PK", "GSI3SK"]
         ddb.create_table(
             TableName=TABLE,
             BillingMode="PAY_PER_REQUEST",
@@ -56,7 +56,7 @@ def table():
                     ],
                     "Projection": {"ProjectionType": "ALL"},
                 }
-                for g in ("GSI1", "GSI2")
+                for g in ("GSI1", "GSI2", "GSI3")
             ],
         )
         boto3.client("s3").create_bucket(Bucket=BUCKET)

@@ -35,7 +35,8 @@ variable "cors_allowed_origins" {
 # Single-table design (NoSQL Workbench model: docs/dynamodb/rapport.workbench.json).
 #   PK/SK         entity keys (USER#, REPORT#, DRAFT#, NOLA311#, BASIN#, STATS#)
 #   GSI1PK/GSI1SK reports by user, newest first (dashboard)
-#   GSI2PK/GSI2SK geohash cell -> type#date (map, duplicate detection)
+#   GSI2PK/GSI2SK geohash cell -> type#date (duplicate detection)
+#   GSI3PK/GSI3SK "MAP" -> date (public map feed)
 resource "aws_dynamodb_table" "main" {
   name         = "rapport-${var.env}"
   billing_mode = "PAY_PER_REQUEST"
@@ -66,6 +67,14 @@ resource "aws_dynamodb_table" "main" {
     name = "GSI2SK"
     type = "S"
   }
+  attribute {
+    name = "GSI3PK"
+    type = "S"
+  }
+  attribute {
+    name = "GSI3SK"
+    type = "S"
+  }
 
   global_secondary_index {
     name            = "GSI1"
@@ -89,6 +98,20 @@ resource "aws_dynamodb_table" "main" {
     }
     key_schema {
       attribute_name = "GSI2SK"
+      key_type       = "RANGE"
+    }
+  }
+
+  # Public map feed: every public report under one partition, newest first.
+  global_secondary_index {
+    name            = "GSI3"
+    projection_type = "ALL"
+    key_schema {
+      attribute_name = "GSI3PK"
+      key_type       = "HASH"
+    }
+    key_schema {
+      attribute_name = "GSI3SK"
       key_type       = "RANGE"
     }
   }

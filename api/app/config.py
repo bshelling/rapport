@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     claude_model: str = "anthropic.claude-opus-5"
     typesafe_key_param: str = "/rapport/prod/typesafe_api_key"
     typesafe_api_key: str = ""  # optional override, e.g. for local runs
+    # Place search/geocoding (Amazon Location): "live" or "fake" (local dev, tests).
+    geo_mode: Literal["live", "fake"] = "fake"
     # "lambda": async-invoke the worker function; "inline": run in-process (local dev).
     worker_mode: Literal["lambda", "inline"] = "inline"
     worker_function: str = ""

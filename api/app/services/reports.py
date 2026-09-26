@@ -68,6 +68,8 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
         "GSI1SK": now,
         "GSI2PK": f"GEO#{geohash(loc.lat, loc.lng, 6)}",
         "GSI2SK": f"TYPE#{draft.request_type}#{now}",
+        "GSI3PK": "MAP",
+        "GSI3SK": now,
         "id": report_id,
         "source": "rapport",
         "user_sub": user_sub,
