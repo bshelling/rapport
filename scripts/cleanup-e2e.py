@@ -34,8 +34,8 @@ def main(env: str) -> None:
     if env == "local":
         local = boto3.Session(
             aws_access_key_id="test",
-            aws_secret_access_key="test",
-            region_name=REGION,  # noqa: S106 (MiniStack dummy credentials)
+            aws_secret_access_key="test",  # noqa: S106 (MiniStack dummy credentials)
+            region_name=REGION,
         )
         endpoint = "http://localhost:4566"
         ddb = local.resource("dynamodb", endpoint_url=endpoint)
