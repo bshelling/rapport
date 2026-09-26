@@ -21,6 +21,6 @@ def _parse_bbox(bbox: str | None) -> map_service.BBox | None:
 
 
 @router.get("/reports")
-def map_reports(bbox: str | None = None) -> MapReports:
-    """Public, anonymous feed of reports for the live map."""
-    return map_service.public_reports(_parse_bbox(bbox))
+def map_reports(bbox: str | None = None, include_city: bool = False) -> MapReports:
+    """Public, anonymous feed of reports (and optionally open City 311 requests)."""
+    return map_service.public_reports(_parse_bbox(bbox), include_city)

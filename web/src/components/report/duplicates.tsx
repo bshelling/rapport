@@ -64,7 +64,14 @@ export function DuplicatesPanel({
             className="flex flex-col gap-2 text-sm"
             data-testid="duplicate-match"
           >
-            {m.is_mine ? (
+            {m.source === "nola311" ? (
+              <p>
+                <strong>Already reported to NOLA 311</strong>{" "}
+                {Math.round(m.distance_m)} m away: {m.request_reason}, request #
+                {m.nola311_ticket}, {formatDate(m.created_at)}. Your report
+                still helps track it.
+              </p>
+            ) : m.is_mine ? (
               <p>
                 <strong>You already reported this</strong> on{" "}
                 {formatDate(m.created_at)} ({Math.round(m.distance_m)} m away).{" "}
@@ -86,7 +93,7 @@ export function DuplicatesPanel({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {!m.is_mine && (
+              {!m.is_mine && m.source !== "nola311" && (
                 <button
                   type="button"
                   disabled={busy !== null}
@@ -101,7 +108,11 @@ export function DuplicatesPanel({
                 onClick={() => setDismissed((d) => [...d, m.report_id])}
                 className="rounded-full border border-border px-4 py-1.5 font-medium"
               >
-                {m.is_mine ? "Report a new problem" : "Not the same"}
+                {m.is_mine
+                  ? "Report a new problem"
+                  : m.source === "nola311"
+                    ? "Report anyway"
+                    : "Not the same"}
               </button>
             </div>
           </motion.div>

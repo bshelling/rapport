@@ -21,6 +21,9 @@ export function PublicMap() {
   const { container, map } = useMap({ zoom: 11 });
   const [reports, setReports] = useState<MapReport[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [showCity, setShowCity] = useState(false);
+  const [city, setCity] = useState<MapReport[]>([]);
+  const [cityCapped, setCityCapped] = useState(false);
 
   useEffect(() => {
     getMapReports()
@@ -70,6 +73,74 @@ export function PublicMap() {
     };
   }, [map, reports]);
 
+  // Open City 311 requests: thousands exist, so load only what's in view.
+  useEffect(() => {
+    if (!map || !showCity) {
+      setCity([]);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let current = 0;
+    const load = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const b = map.getBounds();
+        const gen = ++current;
+        getMapReports({
+          includeCity: true,
+          bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+        })
+          .then((feed) => {
+            if (gen !== current) return; // a newer view is loading
+            setCity(feed.city);
+            setCityCapped(feed.truncated);
+          })
+          .catch(() => undefined);
+      }, 300);
+    };
+    load();
+    map.on("moveend", load);
+    return () => {
+      clearTimeout(timer);
+      map.off("moveend", load);
+    };
+  }, [map, showCity]);
+
+  useEffect(() => {
+    if (!map || city.length === 0) return;
+    const markers: Marker[] = [];
+    let cancelled = false;
+    (async () => {
+      const maplibre = await import("maplibre-gl");
+      if (cancelled) return;
+      for (const r of city) {
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = "block h-2.5 w-2.5 rounded-full border-2 bg-white/80";
+        el.style.borderColor = TYPE_COLORS[r.request_type] ?? "#5b3f8c";
+        el.setAttribute("aria-label", `NOLA 311 request: ${r.request_reason}`);
+        el.dataset.testid = "city-pin";
+        const popup = new maplibre.Popup({
+          offset: 8,
+          closeButton: false,
+        }).setHTML(
+          `<strong>${escapeHtml(r.request_reason)}</strong><br/>` +
+            `NOLA 311 #${escapeHtml(r.id)} · open since ${escapeHtml(formatDate(r.created_at))}`,
+        );
+        markers.push(
+          new maplibre.Marker({ element: el })
+            .setLngLat([r.lng, r.lat])
+            .setPopup(popup)
+            .addTo(map),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+      for (const m of markers) m.remove();
+    };
+  }, [map, city]);
+
   const open = reports?.filter((r) => r.status !== "resolved").length ?? 0;
 
   return (
@@ -87,6 +158,21 @@ export function PublicMap() {
                 : `${open} open ${open === 1 ? "report" : "reports"} from residents`}
           </p>
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showCity}
+            onChange={(e) => setShowCity(e.target.checked)}
+            data-testid="toggle-city"
+          />
+          City 311 requests
+          {showCity && (
+            <span className="text-muted" data-testid="city-count">
+              ({city.length}
+              {cityCapped ? "+" : ""} in view)
+            </span>
+          )}
+        </label>
         <ul className="flex gap-4 text-sm" aria-label="Legend">
           {Object.entries(TYPE_COLORS).map(([type, color]) => (
             <li key={type} className="flex items-center gap-2">

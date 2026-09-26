@@ -316,6 +316,8 @@ export type ReportDetail = {
   } | null;
   supporter_count: number;
   nola311_ticket: string | null;
+  nola311_verified: boolean;
+  suggested_ticket: { ticket: string; probability: number } | null;
   contact: Contact | null;
   events: ReportEvent[];
   created_at: string;
@@ -335,6 +337,13 @@ export const listMyReports = (status: ReportFilter, cursor?: string | null) => {
 
 export const getReport = (id: string) =>
   request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}`, {
+    auth: true,
+  });
+
+export const dismissTicketSuggestion = (id: string) =>
+  request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ dismiss_ticket_suggestion: true }),
     auth: true,
   });
 
@@ -371,6 +380,7 @@ export const reverseGeocode = (lat: number, lng: number) =>
 
 export type MapReport = {
   id: string;
+  source: "rapport" | "nola311";
   request_type: string;
   request_reason: string;
   status: ReportStatus;
@@ -380,8 +390,21 @@ export type MapReport = {
   created_at: string;
 };
 
-export const getMapReports = () =>
-  request<{ reports: MapReport[]; truncated: boolean }>("/api/map/reports");
+export type MapFeed = {
+  reports: MapReport[];
+  city: MapReport[];
+  truncated: boolean;
+};
+
+export const getMapReports = (
+  opts: { includeCity?: boolean; bbox?: number[] } = {},
+) => {
+  const q = new URLSearchParams();
+  if (opts.includeCity) q.set("include_city", "true");
+  if (opts.bbox) q.set("bbox", opts.bbox.map((n) => n.toFixed(5)).join(","));
+  const qs = q.toString();
+  return request<MapFeed>(`/api/map/reports${qs ? `?${qs}` : ""}`);
+};
 
 export const supportReport = (reportId: string, draftId?: string) =>
   request<{ report_id: string; supporter_count: number }>(

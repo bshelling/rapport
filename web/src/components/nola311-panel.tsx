@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError, type ReportDetail, setTicket } from "@/lib/api";
 import {
   NOLA_311_REQUEST_URL,
@@ -20,6 +20,15 @@ export function Nola311Panel({
   const [ticket, setTicketValue] = useState(report.nola311_ticket ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The ticket can also arrive from outside this panel (e.g. accepting a
+  // suggested City request); show it rather than the empty entry form.
+  useEffect(() => {
+    if (report.nola311_ticket) {
+      setTicketValue(report.nola311_ticket);
+      setEditing(false);
+    }
+  }, [report.nola311_ticket]);
 
   const copy = async () => {
     try {
@@ -66,6 +75,11 @@ export function Nola311Panel({
               #{report.nola311_ticket}
             </span>
             .
+          </p>
+          <p className="mt-1 text-xs text-muted" data-testid="ticket-verified">
+            {report.nola311_verified
+              ? "✓ Found in the City's 311 data. Status updates come from the City."
+              : "We'll look for it in the City's 311 data tonight (it's published daily)."}
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
             <a
