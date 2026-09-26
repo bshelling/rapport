@@ -41,10 +41,12 @@ export function ApiStatus() {
     <p
       data-testid="api-status"
       data-state={state.kind}
-      className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm text-muted"
+      title={label}
+      className="inline-flex items-center gap-2 rounded-full border border-border p-2 text-sm text-muted sm:px-3 sm:py-1"
     >
       <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden />
-      {label}
+      {/* Dot only on small screens; the label stays available to screen readers. */}
+      <span className="sr-only sm:not-sr-only">{label}</span>
     </p>
   );
 }

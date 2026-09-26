@@ -46,9 +46,16 @@ jobs:
           echo "site_url=$(terraform output -raw site_url)" >> "$GITHUB_OUTPUT"
           echo "site_bucket=$(terraform output -raw site_bucket)" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$(terraform output -raw distribution_id)" >> "$GITHUB_OUTPUT"
+          echo "user_pool_id=$(terraform output -raw user_pool_id)" >> "$GITHUB_OUTPUT"
+          echo "user_pool_client_id=$(terraform output -raw user_pool_client_id)" >> "$GITHUB_OUTPUT"
+          echo "auth_domain=$(terraform output -raw auth_domain)" >> "$GITHUB_OUTPUT"
 
       - name: Build web
         working-directory: web
+        env:
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ steps.tf.outputs.user_pool_id }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ steps.tf.outputs.user_pool_client_id }}
+          NEXT_PUBLIC_COGNITO_DOMAIN: ${{ steps.tf.outputs.auth_domain }}
         run: |
           bun install --frozen-lockfile
           bun run build
@@ -80,9 +87,14 @@ jobs:
         working-directory: web
         env:
           BASE_URL: ${{ steps.tf.outputs.site_url }}
+          E2E_EMAIL: e2e@example.com
         run: |
+          E2E_PASSWORD=$(aws ssm get-parameter --name /rapport/prod/e2e/password \
+            --with-decryption --query Parameter.Value --output text)
+          echo "::add-mask::$E2E_PASSWORD"
+          export E2E_PASSWORD
           bunx playwright install --with-deps chromium
-          bunx playwright test
+          bunx playwright test --workers=1
 
       - uses: actions/upload-artifact@v7
         if: always()

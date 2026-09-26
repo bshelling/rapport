@@ -9,7 +9,11 @@ BUILD="$(mktemp -d)"
 trap 'rm -rf "$BUILD"' EXIT
 
 cd "$ROOT/api"
-uv export --frozen --no-dev --no-hashes --no-emit-project -o "$BUILD/requirements.txt" >/dev/null
+# boto3/botocore ship with the Lambda Python runtime; leave them out.
+uv export --frozen --no-dev --no-hashes --no-emit-project \
+  --no-emit-package boto3 --no-emit-package botocore \
+  --no-emit-package s3transfer --no-emit-package jmespath \
+  -o "$BUILD/requirements.txt" >/dev/null
 uv pip install -q \
   --target "$BUILD/pkg" \
   --python-platform aarch64-manylinux2014 \

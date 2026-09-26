@@ -41,6 +41,27 @@ variable "photo_bucket_arn" {
   type = string
 }
 
+variable "jwt_issuer" {
+  description = "Cognito user pool issuer URL."
+  type        = string
+}
+
+variable "jwt_audience" {
+  description = "Cognito app client IDs whose ID tokens are accepted."
+  type        = list(string)
+}
+
+variable "public_routes" {
+  description = "Routes served without sign-in. Everything else under /api requires a valid token."
+  type        = list(string)
+  default = [
+    "GET /api/health",
+    "GET /api/neighborhoods",
+    "GET /api/docs",
+    "GET /api/openapi.json",
+  ]
+}
+
 locals {
   name = "rapport-api-${var.env}"
 }
@@ -112,6 +133,7 @@ resource "aws_lambda_function" "api" {
       RAPPORT_CORS_ORIGINS = "[]"
       RAPPORT_TABLE_NAME   = var.table_name
       RAPPORT_PHOTO_BUCKET = var.photo_bucket_name
+      RAPPORT_AUTH_MODE    = "apigw"
     }
   }
 
@@ -130,9 +152,32 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.api.id
+  name             = "cognito"
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    issuer   = var.jwt_issuer
+    audience = var.jwt_audience
+  }
+}
+
+# Secure by default: the catch-all route requires a Cognito ID token.
 resource "aws_apigatewayv2_route" "api" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "ANY /api/{proxy+}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# More specific routes win over the greedy one, so these stay public.
+resource "aws_apigatewayv2_route" "public" {
+  for_each  = toset(var.public_routes)
   api_id    = aws_apigatewayv2_api.api.id
-  route_key = "ANY /api/{proxy+}"
+  route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
