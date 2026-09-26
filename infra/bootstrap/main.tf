@@ -197,6 +197,25 @@ resource "aws_iam_role_policy_attachment" "gha_plan_state" {
   policy_arn = aws_iam_policy.tfstate_rw.arn
 }
 
+# ReadOnlyAccess doesn't cover the Cloud Control read of the Location map key
+# (awscc_location_api_key), which Terraform plans need.
+data "aws_iam_policy_document" "gha_plan_extra_reads" {
+  statement {
+    actions   = ["geo:DescribeKey", "geo:ListTagsForResource"]
+    resources = ["arn:aws:geo:${var.region}:${local.account_id}:api-key/rapport-*"]
+  }
+  statement {
+    actions   = ["geo:ListKeys"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "gha_plan_extra_reads" {
+  name   = "rapport-plan-extra-reads"
+  role   = aws_iam_role.gha_plan.id
+  policy = data.aws_iam_policy_document.gha_plan_extra_reads.json
+}
+
 # --- GitHub Actions: deploy role (main branch via the prod environment) -----
 
 data "aws_iam_policy_document" "gha_deploy_trust" {

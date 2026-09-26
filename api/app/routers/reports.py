@@ -3,8 +3,14 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.auth import CurrentUserDep
-from app.models.report import ReportDetail, ReportPage, TicketUpdate
-from app.services import reports
+from app.models.report import (
+    ReportDetail,
+    ReportPage,
+    SupportRequest,
+    SupportResult,
+    TicketUpdate,
+)
+from app.services import drafts, reports
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -37,3 +43,14 @@ def update_report(report_id: str, body: TicketUpdate, user: CurrentUserDep) -> R
         return reports.set_ticket(report_id, user.sub, body.nola311_ticket)
     except reports.ReportNotFound:
         raise _not_found() from None
+
+
+@router.post("/{report_id}/support", status_code=status.HTTP_201_CREATED)
+def add_support(report_id: str, body: SupportRequest, user: CurrentUserDep) -> SupportResult:
+    try:
+        count = reports.support(report_id, user.sub, body.draft_id)
+    except (reports.ReportNotFound, drafts.DraftNotFound):
+        raise _not_found() from None
+    except reports.CannotSupport as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, exc.reason) from None
+    return SupportResult(report_id=report_id, supporter_count=count)

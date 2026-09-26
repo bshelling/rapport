@@ -142,6 +142,35 @@ export type Triage = {
   updated_at: string;
 };
 
+export type DuplicateCandidate = {
+  report_id: string;
+  source: "rapport" | "nola311";
+  request_reason: string;
+  status: string;
+  distance_m: number;
+  supporter_count: number;
+  nola311_ticket: string | null;
+  created_at: string;
+  is_mine: boolean;
+  probability: number;
+};
+
+export type DuplicateCheck = {
+  status: "done" | "error";
+  checked_for: string;
+  matches: DuplicateCandidate[];
+  updated_at: string;
+};
+
+/** Mirrors api/app/services/duplicates.py check_key. */
+export function duplicateCheckKey(
+  type: string,
+  lat: number,
+  lng: number,
+): string {
+  return `${type}|${lat.toFixed(5)}|${lng.toFixed(5)}`;
+}
+
 export type Draft = {
   id: string;
   step: number;
@@ -152,6 +181,7 @@ export type Draft = {
   description_html: string | null;
   photos: DraftPhoto[];
   triage: Triage | null;
+  duplicates: DuplicateCheck | null;
   photos_private: boolean;
   created_at: string;
   updated_at: string;
@@ -274,6 +304,7 @@ export type ReportDetail = {
   description_html: string;
   photos: { key: string; url: string }[];
   photo_public: boolean;
+  supported_by_me: boolean;
   ai: {
     suggested_reason?: string;
     reason_confidence?: number;
@@ -351,3 +382,13 @@ export type MapReport = {
 
 export const getMapReports = () =>
   request<{ reports: MapReport[]; truncated: boolean }>("/api/map/reports");
+
+export const supportReport = (reportId: string, draftId?: string) =>
+  request<{ report_id: string; supporter_count: number }>(
+    `/api/reports/${encodeURIComponent(reportId)}/support`,
+    {
+      method: "POST",
+      body: JSON.stringify({ draft_id: draftId ?? null }),
+      auth: true,
+    },
+  );

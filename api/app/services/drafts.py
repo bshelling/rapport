@@ -40,6 +40,7 @@ def _to_model(item: dict) -> Draft:
         description_html=item.get("description_html"),
         photos=[Photo(**p) for p in item.get("photos", [])],
         triage=from_dynamo(item.get("triage")),
+        duplicates=from_dynamo(item.get("duplicates")),
         photos_private=bool(item.get("photos_private", False)),
         created_at=item["created_at"],
         updated_at=item["updated_at"],

@@ -46,3 +46,24 @@ class Triage(BaseModel):
 
 class Insights(BaseModel):
     triage: Triage | None = None
+
+
+class DuplicateCandidate(BaseModel):
+    report_id: str
+    source: Literal["rapport", "nola311"] = "rapport"
+    request_reason: str
+    status: str
+    distance_m: float
+    supporter_count: int = 0
+    nola311_ticket: str | None = None
+    created_at: str
+    is_mine: bool = False
+    probability: float
+
+
+class DuplicateCheck(BaseModel):
+    status: Literal["done", "error"]
+    # Location + type the check ran for, so a changed pin re-runs it.
+    checked_for: str
+    matches: list[DuplicateCandidate] = []
+    updated_at: str

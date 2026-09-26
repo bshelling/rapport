@@ -116,6 +116,8 @@ jobs:
             --with-decryption --query Parameter.Value --output text)
           echo "::add-mask::$E2E_PASSWORD"
           export E2E_PASSWORD
+          E2E_NEIGHBOR_REPORT_ID=$(cd .. && uv run -q --with boto3 scripts/seed-e2e.py prod)
+          export E2E_NEIGHBOR_REPORT_ID
           bunx playwright install --with-deps chromium
           bunx playwright test --workers=1
 
