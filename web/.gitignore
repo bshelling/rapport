@@ -43,3 +43,6 @@ next-env.d.ts
 # screenshots
 screenshots/
 !.env.example
+
+# MapLibre worker, copied from node_modules at dev/build time
+/public/maplibre/

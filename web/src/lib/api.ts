@@ -313,3 +313,41 @@ export const setTicket = (id: string, nola311_ticket: string) =>
     body: JSON.stringify({ nola311_ticket }),
     auth: true,
   });
+
+// --- Places & map --------------------------------------------------------------
+
+export type PlaceSuggestion = { place_id: string; title: string };
+export type Place = { lat: number; lng: number; address: string | null };
+
+export const suggestPlaces = (q: string) =>
+  request<{ suggestions: PlaceSuggestion[] }>(
+    `/api/geo/suggest?q=${encodeURIComponent(q)}`,
+    {
+      auth: true,
+    },
+  ).then((r) => r.suggestions);
+
+export const getPlace = (placeId: string) =>
+  request<Place>(`/api/geo/place/${encodeURIComponent(placeId)}`, {
+    auth: true,
+  });
+
+export const reverseGeocode = (lat: number, lng: number) =>
+  request<{ address: string | null }>(
+    `/api/geo/reverse?lat=${lat}&lng=${lng}`,
+    { auth: true },
+  );
+
+export type MapReport = {
+  id: string;
+  request_type: string;
+  request_reason: string;
+  status: ReportStatus;
+  lat: number;
+  lng: number;
+  supporter_count: number;
+  created_at: string;
+};
+
+export const getMapReports = () =>
+  request<{ reports: MapReport[]; truncated: boolean }>("/api/map/reports");

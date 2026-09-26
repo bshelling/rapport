@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
+import { LocationPicker } from "@/components/map/location-picker";
 import { InsightsPanel } from "@/components/report/insights";
 import { RichText } from "@/components/report/rich-text";
 import { StepNav } from "@/components/report/step-nav";
@@ -12,6 +13,7 @@ import {
   patchDraft,
   type ReasonOption,
   type Report,
+  reverseGeocode,
   submitDraft,
 } from "@/lib/api";
 import { inNewOrleans } from "@/lib/geo";
@@ -71,6 +73,15 @@ export function StepDescribe({
     }
     setLocation({ lat, lng, source, address: address || null });
     setLocationNote(null);
+    // Fill in a readable address if the resident hasn't typed one.
+    if (!address.trim()) {
+      reverseGeocode(lat, lng)
+        .then((r) => {
+          if (r.address)
+            setAddress((current) => current || (r.address as string));
+        })
+        .catch(() => undefined);
+    }
     return true;
   };
 
@@ -189,6 +200,7 @@ export function StepDescribe({
             <span className="text-sm text-muted" data-testid="location-set">
               {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               {location.source === "photo" && " (from photo)"}
+              {location.source === "manual" && " (on map)"}
             </span>
           )}
         </div>
@@ -210,11 +222,16 @@ export function StepDescribe({
           placeholder="e.g. corner of Napoleon Ave & Magazine St"
           className="w-full rounded-xl border border-border bg-background px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
         />
-        {!location && (
-          <p className="mt-2 text-xs text-muted">
-            Use your current location, or add a photo taken at the spot.
-          </p>
-        )}
+        <div className="mt-3">
+          <LocationPicker
+            value={location}
+            onChange={(loc) => {
+              setLocation({ ...loc, address: address || null });
+              setLocationNote(null);
+            }}
+            onAddress={(a) => setAddress(a)}
+          />
+        </div>
       </section>
 
       <section className="mt-6" aria-labelledby={`${id}-photos`}>
