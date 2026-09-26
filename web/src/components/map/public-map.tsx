@@ -8,6 +8,35 @@ import { getMapReports, type MapReport } from "@/lib/api";
 import { hasMapTiles, TYPE_COLORS } from "@/lib/map-style";
 import { formatDate, STATUS_LABEL } from "@/lib/report-format";
 
+const BASIN_MIN_ZOOM = 15;
+const fmtCount = (n: number) => new Intl.NumberFormat("en-US").format(n);
+
+/** City catch basins inside a box (data.nola.gov allows browser requests). */
+async function fetchBasins(
+  north: number,
+  west: number,
+  south: number,
+  east: number,
+) {
+  const q = new URLSearchParams({
+    $select: "gisid,stname,the_geom",
+    $where: `within_box(the_geom, ${north}, ${west}, ${south}, ${east})`,
+    $limit: "5000",
+  });
+  const res = await fetch(`https://data.nola.gov/resource/se4p-ierc.json?${q}`);
+  if (!res.ok) throw new Error(`basins ${res.status}`);
+  const rows: {
+    gisid: string;
+    stname?: string;
+    the_geom: { coordinates: [number, number] };
+  }[] = await res.json();
+  return rows.map((r) => ({
+    type: "Feature" as const,
+    geometry: { type: "Point" as const, coordinates: r.the_geom.coordinates },
+    properties: { id: r.gisid, street: r.stname ?? "" },
+  }));
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -24,6 +53,8 @@ export function PublicMap() {
   const [showCity, setShowCity] = useState(false);
   const [city, setCity] = useState<MapReport[]>([]);
   const [cityCapped, setCityCapped] = useState(false);
+  const [showBasins, setShowBasins] = useState(false);
+  const [basinNote, setBasinNote] = useState<string | null>(null);
 
   useEffect(() => {
     getMapReports()
@@ -141,6 +172,74 @@ export function PublicMap() {
     };
   }, [map, city]);
 
+  // Catch basins (80k citywide) straight from data.nola.gov, only when zoomed in.
+  useEffect(() => {
+    if (!map) return;
+    const SOURCE = "basins";
+    if (!map.getSource(SOURCE)) {
+      map.addSource(SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: SOURCE,
+        type: "circle",
+        source: SOURCE,
+        minzoom: BASIN_MIN_ZOOM,
+        paint: {
+          "circle-radius": 3,
+          "circle-color": "#5b5968",
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+    }
+    map.setLayoutProperty(
+      SOURCE,
+      "visibility",
+      showBasins ? "visible" : "none",
+    );
+    if (!showBasins) {
+      setBasinNote(null);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let current = 0;
+    const load = () => {
+      clearTimeout(timer);
+      if (map.getZoom() < BASIN_MIN_ZOOM) {
+        setBasinNote("Zoom in to see catch basins.");
+        return;
+      }
+      timer = setTimeout(async () => {
+        const gen = ++current;
+        const b = map.getBounds();
+        try {
+          const features = await fetchBasins(
+            b.getNorth(),
+            b.getWest(),
+            b.getSouth(),
+            b.getEast(),
+          );
+          if (gen !== current) return;
+          const source = map.getSource(SOURCE) as
+            | import("maplibre-gl").GeoJSONSource
+            | undefined;
+          source?.setData({ type: "FeatureCollection", features });
+          setBasinNote(`${fmtCount(features.length)} catch basins in view`);
+        } catch {
+          setBasinNote("Couldn't load catch basins right now.");
+        }
+      }, 300);
+    };
+    load();
+    map.on("moveend", load);
+    return () => {
+      clearTimeout(timer);
+      map.off("moveend", load);
+    };
+  }, [map, showBasins]);
+
   const open = reports?.filter((r) => r.status !== "resolved").length ?? 0;
 
   return (
@@ -158,6 +257,25 @@ export function PublicMap() {
                 : `${open} open ${open === 1 ? "report" : "reports"} from residents`}
           </p>
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showBasins}
+            onChange={(e) => {
+              setShowBasins(e.target.checked);
+              if (e.target.checked && map && map.getZoom() < BASIN_MIN_ZOOM) {
+                map.easeTo({ zoom: BASIN_MIN_ZOOM });
+              }
+            }}
+            data-testid="toggle-basins"
+          />
+          Catch basins
+          {basinNote && (
+            <span className="text-muted" data-testid="basin-note">
+              ({basinNote})
+            </span>
+          )}
+        </label>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

@@ -76,6 +76,7 @@ variable "public_routes" {
     "GET /api/neighborhoods",
     "GET /api/service-catalog",
     "GET /api/map/reports",
+    "GET /api/stats",
     "GET /api/docs",
     "GET /api/openapi.json",
   ]

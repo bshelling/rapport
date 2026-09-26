@@ -1,3 +1,4 @@
+import { Impact } from "@/components/impact";
 import { PublicMap } from "@/components/map/public-map";
 import { ReportButton } from "@/components/report-button";
 
@@ -42,6 +43,8 @@ export default function Home() {
       </section>
 
       <PublicMap />
+
+      <Impact />
 
       <section
         className="grid gap-4 sm:grid-cols-2"

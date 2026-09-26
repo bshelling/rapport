@@ -38,8 +38,8 @@ def _ssl() -> ssl.SSLContext:
     return ssl.create_default_context(cafile=certifi.where())
 
 
-def _fetch(params: dict, timeout: float = 30.0) -> list[dict]:
-    url = f"{DATASET_URL}?{urllib.parse.urlencode(params)}"
+def _fetch(params: dict, timeout: float = 30.0, url: str = DATASET_URL) -> list[dict]:
+    url = f"{url}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})  # noqa: S310
     with urllib.request.urlopen(req, timeout=timeout, context=_ssl()) as res:  # noqa: S310
         return json.loads(res.read())
@@ -113,3 +113,33 @@ def to_item(row: dict) -> dict | None:
         item["GSI3PK"] = "MAP311"
         item["GSI3SK"] = created
     return item
+
+
+BASINS_URL = "https://data.nola.gov/resource/se4p-ierc.json"
+
+
+def nearest_basin(lat: float, lng: float, radius_m: int = 40) -> dict | None:
+    """Closest City catch basin to a point (for drainage reports), or None."""
+    from app.geo import distance_m
+
+    rows = _fetch(
+        {
+            "$select": "gisid, stname, neighborhood, the_geom",
+            "$where": f"within_circle(the_geom, {lat}, {lng}, {radius_m})",
+            "$limit": 20,
+        },
+        timeout=3.0,
+        url=BASINS_URL,
+    )
+    best = None
+    for r in rows:
+        blng, blat = r["the_geom"]["coordinates"]
+        d = distance_m(lat, lng, blat, blng)
+        if best is None or d < best["distance_m"]:
+            best = {
+                "gisid": r.get("gisid"),
+                "street": (r.get("stname") or "").title() or None,
+                "neighborhood": r.get("neighborhood"),
+                "distance_m": round(d, 1),
+            }
+    return best

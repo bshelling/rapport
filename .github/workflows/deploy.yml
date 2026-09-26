@@ -69,7 +69,7 @@ jobs:
           echo "::add-mask::$key"
           echo "map_api_key=$key" >> "$GITHUB_OUTPUT"
 
-      - name: First NOLA 311 import (once)
+      - name: NOLA 311 import and stats
         working-directory: infra/envs/prod
         run: |
           table=$(terraform output -raw table_name)
@@ -82,7 +82,11 @@ jobs:
               --cli-binary-format raw-in-base64-out backfill.json
             cat backfill.json
           else
-            echo "Import state exists; the nightly schedule keeps it current"
+            # Incremental catch-up; also refreshes the home page stats.
+            aws lambda invoke --function-name "$(terraform output -raw ingest_function_name)" \
+              --cli-read-timeout 900 --payload '{}' \
+              --cli-binary-format raw-in-base64-out ingest.json
+            cat ingest.json
           fi
 
       - name: Build web

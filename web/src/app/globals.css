@@ -8,6 +8,8 @@
   --brand: #2f5d50; /* bayou green */
   --accent: #5b3f8c; /* muted purple */
   --gold: #b8892d;
+  /* Chart mark color: validated with the dataviz palette checks (light surface). */
+  --chart-bar: #1c7f5e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +21,8 @@
     --brand: #6fb39c;
     --accent: #a88be0;
     --gold: #d9ae55;
+    /* Validated separately against the dark surface. */
+    --chart-bar: #3fa37f;
   }
 }
 
@@ -30,6 +34,7 @@
   --color-brand: var(--brand);
   --color-accent: var(--accent);
   --color-gold: var(--gold);
+  --color-chart-bar: var(--chart-bar);
   --font-sans: var(--font-public-sans);
 }
 

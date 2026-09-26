@@ -72,3 +72,14 @@ def client(table):
 
 def dev_headers(sub="user-1", email="alex@example.com"):
     return {"X-Dev-User": sub, "X-Dev-Email": email}
+
+
+@pytest.fixture(autouse=True)
+def no_city_network(monkeypatch):
+    """Tests never call data.nola.gov; stub nola311 functions where needed."""
+    from app.services import nola311
+
+    def blocked(*args, **kwargs):
+        raise AssertionError("tests must not call data.nola.gov")
+
+    monkeypatch.setattr(nola311, "_fetch", blocked)
