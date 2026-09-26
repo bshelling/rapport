@@ -1,0 +1,95 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: ${{ steps.tf.outputs.site_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: web/package.json
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Build Lambda package
+        run: scripts/build-api-zip.sh
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform apply
+        id: tf
+        working-directory: infra/envs/prod
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve -var "app_version=${GITHUB_SHA}"
+          echo "site_url=$(terraform output -raw site_url)" >> "$GITHUB_OUTPUT"
+          echo "site_bucket=$(terraform output -raw site_bucket)" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$(terraform output -raw distribution_id)" >> "$GITHUB_OUTPUT"
+
+      - name: Build web
+        working-directory: web
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Upload web
+        working-directory: web/out
+        run: |
+          # Hashed assets are immutable; everything else revalidates.
+          aws s3 sync _next "s3://${{ steps.tf.outputs.site_bucket }}/_next" \
+            --delete --cache-control "public,max-age=31536000,immutable"
+          aws s3 sync . "s3://${{ steps.tf.outputs.site_bucket }}" \
+            --delete --exclude "_next/*" --cache-control "public,max-age=0,must-revalidate"
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.tf.outputs.distribution_id }}" --paths "/*" >/dev/null
+
+      - name: Smoke test
+        env:
+          SITE: ${{ steps.tf.outputs.site_url }}
+        run: |
+          for i in $(seq 1 30); do
+            body=$(curl -sf "$SITE/api/health" || true)
+            if echo "$body" | grep -q "$GITHUB_SHA"; then echo "$body"; break; fi
+            sleep 10
+          done
+          echo "$body" | grep -q "$GITHUB_SHA" || { echo "API not serving $GITHUB_SHA"; exit 1; }
+          curl -sf "$SITE/" | grep -q "Report it in a minute" || { echo "home page check failed"; exit 1; }
+
+      - name: Playwright against prod
+        working-directory: web
+        env:
+          BASE_URL: ${{ steps.tf.outputs.site_url }}
+        run: |
+          bunx playwright install --with-deps chromium
+          bunx playwright test
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: prod-screenshots
+          path: web/screenshots/
+          if-no-files-found: ignore
+
+      - name: Summary
+        run: echo "Deployed ${GITHUB_SHA::7} to ${{ steps.tf.outputs.site_url }}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,105 @@
+name: ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: web/package.json
+      - run: bun install --frozen-lockfile
+      - name: Lint (Biome)
+        run: bunx biome ci .
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Unit tests
+        run: bun test
+      - name: Build (static export)
+        run: bun run build
+
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv sync --frozen
+      - name: Lint (Ruff)
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+      - name: Build Lambda package
+        working-directory: .
+        run: scripts/build-api-zip.sh
+
+  infra:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+      - uses: terraform-linters/setup-tflint@v6
+      - uses: astral-sh/setup-uv@v10
+      - name: Format
+        run: terraform fmt -check -recursive infra
+      - name: TFLint
+        run: tflint --recursive --chdir infra
+      - name: Validate local env
+        working-directory: infra/envs/local
+        run: terraform init -backend=false -input=false && terraform validate
+      - name: Build Lambda package (needed by plan)
+        run: scripts/build-api-zip.sh
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Plan prod
+        id: plan
+        working-directory: infra/envs/prod
+        run: |
+          terraform init -input=false
+          terraform validate
+          terraform plan -input=false -lock=false -no-color -var "app_version=${GITHUB_SHA}" -out=tfplan > plan.txt
+          summary=$(grep -E "^(Plan:|No changes)" plan.txt || echo "see job log")
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: infra/envs/prod
+        run: |
+          {
+            echo "### Terraform plan (prod)"
+            echo
+            echo "**${{ steps.plan.outputs.summary }}**"
+            echo
+            echo "<details><summary>Resource changes</summary>"
+            echo
+            echo '```'
+            grep -E "^\s+# .* (will be|must be)" plan.txt | sed 's/^ *//' | head -100
+            echo '```'
+            echo "</details>"
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md --edit-last --create-if-none

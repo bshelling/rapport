@@ -1,0 +1,667 @@
+{
+  "ModelName": "rapport",
+  "ModelMetadata": {
+    "Author": "rapport",
+    "DateCreated": "Sep 26, 2026",
+    "DateLastModified": "Sep 26, 2026",
+    "Description": "Rapport single-table design. Mirrors infra/modules/data.",
+    "AWSService": "Amazon DynamoDB",
+    "Version": "3.0"
+  },
+  "DataModel": [
+    {
+      "TableName": "rapport-local",
+      "KeyAttributes": {
+        "PartitionKey": {
+          "AttributeName": "PK",
+          "AttributeType": "S"
+        },
+        "SortKey": {
+          "AttributeName": "SK",
+          "AttributeType": "S"
+        }
+      },
+      "NonKeyAttributes": [
+        {
+          "AttributeName": "GSI1PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI1SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "source",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "request_type",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "request_reason",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "request_status",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "status",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "address",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "first_name",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "last_name",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "email",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "phone",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "phone_type",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "neighborhood",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "street",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "user_sub",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "event_source",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "created_at",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "lat",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "lng",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "supporter_count",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "step",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "expires_at",
+          "AttributeType": "N"
+        }
+      ],
+      "TableFacets": [
+        {
+          "FacetName": "UserProfile",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "USER#{sub}",
+            "SortKeyAlias": "PROFILE"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "USER#11111111-aaaa-4bbb-8ccc-000000000001"
+              },
+              "SK": {
+                "S": "PROFILE"
+              },
+              "first_name": {
+                "S": "Alex"
+              },
+              "last_name": {
+                "S": "Robichaux"
+              },
+              "email": {
+                "S": "alex@example.com"
+              },
+              "phone": {
+                "S": "5045550100"
+              },
+              "phone_type": {
+                "S": "mobile"
+              },
+              "neighborhood": {
+                "S": "Uptown"
+              },
+              "created_at": {
+                "S": "2026-09-26T15:00:00Z"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "phone_type",
+            "neighborhood",
+            "created_at"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Report",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "REPORT#{id}",
+            "SortKeyAlias": "META"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+              },
+              "SK": {
+                "S": "META"
+              },
+              "GSI1PK": {
+                "S": "USER#11111111-aaaa-4bbb-8ccc-000000000001"
+              },
+              "GSI1SK": {
+                "S": "2026-09-26T15:10:00Z"
+              },
+              "GSI2PK": {
+                "S": "GEO#9vrfxy"
+              },
+              "GSI2SK": {
+                "S": "TYPE#Drainage#2026-09-26T15:10:00Z"
+              },
+              "source": {
+                "S": "rapport"
+              },
+              "request_type": {
+                "S": "Drainage"
+              },
+              "request_reason": {
+                "S": "Catch Basin Clogged"
+              },
+              "address": {
+                "S": "Napoleon Ave & Magazine St"
+              },
+              "lat": {
+                "N": "29.9212"
+              },
+              "lng": {
+                "N": "-90.1027"
+              },
+              "status": {
+                "S": "submitted"
+              },
+              "supporter_count": {
+                "N": "0"
+              },
+              "created_at": {
+                "S": "2026-09-26T15:10:00Z"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "GSI1PK",
+            "GSI1SK",
+            "GSI2PK",
+            "GSI2SK",
+            "source",
+            "request_type",
+            "request_reason",
+            "address",
+            "lat",
+            "lng",
+            "status",
+            "supporter_count",
+            "created_at"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "ReportEvent",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "REPORT#{id}",
+            "SortKeyAlias": "EVENT#{ts}"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+              },
+              "SK": {
+                "S": "EVENT#2026-09-26T15:10:00Z"
+              },
+              "status": {
+                "S": "submitted"
+              },
+              "event_source": {
+                "S": "user"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "status",
+            "event_source"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Supporter",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "REPORT#{id}",
+            "SortKeyAlias": "SUPPORT#{sub}"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+              },
+              "SK": {
+                "S": "SUPPORT#22222222-aaaa-4bbb-8ccc-000000000002"
+              },
+              "created_at": {
+                "S": "2026-09-26T16:00:00Z"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "created_at"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Draft",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "DRAFT#{id}",
+            "SortKeyAlias": "META"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "DRAFT#01J8ZK9W0C3D4E5F6G7H8J9K0L"
+              },
+              "SK": {
+                "S": "META"
+              },
+              "user_sub": {
+                "S": "11111111-aaaa-4bbb-8ccc-000000000001"
+              },
+              "step": {
+                "N": "2"
+              },
+              "expires_at": {
+                "N": "1790000000"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "user_sub",
+            "step",
+            "expires_at"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "City311Request",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "NOLA311#{ticket}",
+            "SortKeyAlias": "META"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "NOLA311#2026-1322736"
+              },
+              "SK": {
+                "S": "META"
+              },
+              "GSI2PK": {
+                "S": "GEO#9vrfxy"
+              },
+              "GSI2SK": {
+                "S": "TYPE#Roads and Streets#2026-09-25T23:55:14Z"
+              },
+              "source": {
+                "S": "nola311"
+              },
+              "request_type": {
+                "S": "Roads and Streets"
+              },
+              "request_reason": {
+                "S": "Pothole"
+              },
+              "request_status": {
+                "S": "Pending"
+              },
+              "address": {
+                "S": "3215 Fern St"
+              },
+              "lat": {
+                "N": "29.9606"
+              },
+              "lng": {
+                "N": "-90.1123"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "GSI2PK",
+            "GSI2SK",
+            "source",
+            "request_type",
+            "request_reason",
+            "request_status",
+            "address",
+            "lat",
+            "lng"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "CatchBasin",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "BASIN#{gisid}",
+            "SortKeyAlias": "META"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "BASIN#CB130338"
+              },
+              "SK": {
+                "S": "META"
+              },
+              "GSI2PK": {
+                "S": "GEO#9vrfwm"
+              },
+              "GSI2SK": {
+                "S": "BASIN#CB130338"
+              },
+              "neighborhood": {
+                "S": "MILAN"
+              },
+              "street": {
+                "S": "CONSTANTINOPLE ST"
+              },
+              "lat": {
+                "N": "29.9287"
+              },
+              "lng": {
+                "N": "-90.0977"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "GSI2PK",
+            "GSI2SK",
+            "neighborhood",
+            "street",
+            "lat",
+            "lng"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "GSI1",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI1PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI1SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "GSI2",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI2PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI2SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        }
+      ],
+      "TableData": [
+        {
+          "PK": {
+            "S": "USER#11111111-aaaa-4bbb-8ccc-000000000001"
+          },
+          "SK": {
+            "S": "PROFILE"
+          },
+          "first_name": {
+            "S": "Alex"
+          },
+          "last_name": {
+            "S": "Robichaux"
+          },
+          "email": {
+            "S": "alex@example.com"
+          },
+          "phone": {
+            "S": "5045550100"
+          },
+          "phone_type": {
+            "S": "mobile"
+          },
+          "neighborhood": {
+            "S": "Uptown"
+          },
+          "created_at": {
+            "S": "2026-09-26T15:00:00Z"
+          }
+        },
+        {
+          "PK": {
+            "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+          },
+          "SK": {
+            "S": "META"
+          },
+          "GSI1PK": {
+            "S": "USER#11111111-aaaa-4bbb-8ccc-000000000001"
+          },
+          "GSI1SK": {
+            "S": "2026-09-26T15:10:00Z"
+          },
+          "GSI2PK": {
+            "S": "GEO#9vrfxy"
+          },
+          "GSI2SK": {
+            "S": "TYPE#Drainage#2026-09-26T15:10:00Z"
+          },
+          "source": {
+            "S": "rapport"
+          },
+          "request_type": {
+            "S": "Drainage"
+          },
+          "request_reason": {
+            "S": "Catch Basin Clogged"
+          },
+          "address": {
+            "S": "Napoleon Ave & Magazine St"
+          },
+          "lat": {
+            "N": "29.9212"
+          },
+          "lng": {
+            "N": "-90.1027"
+          },
+          "status": {
+            "S": "submitted"
+          },
+          "supporter_count": {
+            "N": "0"
+          },
+          "created_at": {
+            "S": "2026-09-26T15:10:00Z"
+          }
+        },
+        {
+          "PK": {
+            "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+          },
+          "SK": {
+            "S": "EVENT#2026-09-26T15:10:00Z"
+          },
+          "status": {
+            "S": "submitted"
+          },
+          "event_source": {
+            "S": "user"
+          }
+        },
+        {
+          "PK": {
+            "S": "REPORT#01J8ZK3Q7R2V5X9N4B6M8P0T1A"
+          },
+          "SK": {
+            "S": "SUPPORT#22222222-aaaa-4bbb-8ccc-000000000002"
+          },
+          "created_at": {
+            "S": "2026-09-26T16:00:00Z"
+          }
+        },
+        {
+          "PK": {
+            "S": "DRAFT#01J8ZK9W0C3D4E5F6G7H8J9K0L"
+          },
+          "SK": {
+            "S": "META"
+          },
+          "user_sub": {
+            "S": "11111111-aaaa-4bbb-8ccc-000000000001"
+          },
+          "step": {
+            "N": "2"
+          },
+          "expires_at": {
+            "N": "1790000000"
+          }
+        },
+        {
+          "PK": {
+            "S": "NOLA311#2026-1322736"
+          },
+          "SK": {
+            "S": "META"
+          },
+          "GSI2PK": {
+            "S": "GEO#9vrfxy"
+          },
+          "GSI2SK": {
+            "S": "TYPE#Roads and Streets#2026-09-25T23:55:14Z"
+          },
+          "source": {
+            "S": "nola311"
+          },
+          "request_type": {
+            "S": "Roads and Streets"
+          },
+          "request_reason": {
+            "S": "Pothole"
+          },
+          "request_status": {
+            "S": "Pending"
+          },
+          "address": {
+            "S": "3215 Fern St"
+          },
+          "lat": {
+            "N": "29.9606"
+          },
+          "lng": {
+            "N": "-90.1123"
+          }
+        },
+        {
+          "PK": {
+            "S": "BASIN#CB130338"
+          },
+          "SK": {
+            "S": "META"
+          },
+          "GSI2PK": {
+            "S": "GEO#9vrfwm"
+          },
+          "GSI2SK": {
+            "S": "BASIN#CB130338"
+          },
+          "neighborhood": {
+            "S": "MILAN"
+          },
+          "street": {
+            "S": "CONSTANTINOPLE ST"
+          },
+          "lat": {
+            "N": "29.9287"
+          },
+          "lng": {
+            "N": "-90.0977"
+          }
+        }
+      ],
+      "DataAccess": {
+        "MySql": {}
+      },
+      "BillingMode": "PAY_PER_REQUEST"
+    }
+  ]
+}

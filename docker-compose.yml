@@ -1,0 +1,13 @@
+# Local AWS emulation for development. See README "Local development".
+services:
+  ministack:
+    image: ministackorg/ministack:1.5.17
+    ports:
+      - "4566:4566"
+    environment:
+      MINISTACK_REGION: us-east-1
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:4566/_ministack/health')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
