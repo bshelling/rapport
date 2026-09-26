@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from boto3.dynamodb.conditions import Key
 
+from app.config import get_settings
 from app.db import from_dynamo, get_table
 from app.geo import distance_m, geohash_neighborhood
 from app.html import plain_text
@@ -137,6 +138,15 @@ def run(mode: str = "incremental", months: int = 24) -> dict:
         counts = import_rows(nola311.fetch_since("date_modified", state["last_modified"]))
     watermark = max(state.get("last_modified", ""), counts.pop("latest_modified", ""))
     counts["suggested"] = suggest_links()
+    if get_settings().nola311_mode == "live":
+        try:
+            from app.services import stats
+
+            stats.compute()
+            counts["stats"] = "ok"
+        except Exception:  # stats are nice-to-have; never fail the import over them
+            log.exception("stats computation failed")
+            counts["stats"] = "error"
     table.put_item(
         Item={
             **STATE_KEY,

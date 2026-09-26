@@ -304,6 +304,12 @@ export type ReportDetail = {
   description_html: string;
   photos: { key: string; url: string }[];
   photo_public: boolean;
+  basin: {
+    gisid: string | null;
+    street: string | null;
+    neighborhood: string | null;
+    distance_m: number;
+  } | null;
   supported_by_me: boolean;
   ai: {
     suggested_reason?: string;
@@ -415,3 +421,37 @@ export const supportReport = (reportId: string, draftId?: string) =>
       auth: true,
     },
   );
+
+// --- Impact stats -----------------------------------------------------------------
+
+export type NeighborhoodStat = {
+  neighborhood: string;
+  open_requests: number;
+  basins: number;
+  per_100_basins: number;
+};
+
+export type Stats = {
+  computed_at: string;
+  open_drainage_requests: number;
+  open_drainage_by_neighborhood: NeighborhoodStat[];
+  total_basins: number;
+  median_days_to_close: Record<string, number>;
+  potholes_this_month: { reported: number; closed: number };
+  francine: {
+    drainage_requests: number;
+    baseline_requests: number;
+    multiplier: number | null;
+    catch_basin_not_draining: number;
+    window: string;
+    baseline_window: string;
+  };
+  rapport: {
+    reports: number;
+    supporters: number;
+    filed_with_311: number;
+    resolved: number;
+  };
+};
+
+export const getStats = () => request<Stats>("/api/stats");

@@ -62,6 +62,13 @@ class SuggestedTicket(BaseModel):
     probability: float
 
 
+class Basin(BaseModel):
+    gisid: str | None = None
+    street: str | None = None
+    neighborhood: str | None = None
+    distance_m: float
+
+
 class ReportAI(BaseModel):
     """AI assessment captured at submission (Claude vision + Jev)."""
 
@@ -86,6 +93,7 @@ class ReportDetail(BaseModel):
     description_html: str
     photos: list[ReportPhoto]
     photo_public: bool = False
+    basin: Basin | None = None
     ai: ReportAI | None = None
     supported_by_me: bool = False
     supporter_count: int

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.config import get_settings
-from app.routers import catalog, drafts, geo, health, map, me, meta, reports
+from app.routers import catalog, drafts, geo, health, map, me, meta, reports, stats
 
 
 def create_app() -> FastAPI:
@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
         reports.router,
         geo.router,
         map.router,
+        stats.router,
     ):
         app.include_router(router, prefix="/api")
     return app

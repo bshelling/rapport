@@ -95,6 +95,16 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
         "created_at": now,
         "updated_at": now,
     }
+    # Drainage reports point crews at a specific catch basin when one is close by.
+    if draft.request_type == "Drainage" and get_settings().nola311_mode == "live":
+        from app.services import nola311
+
+        try:
+            basin = nola311.nearest_basin(loc.lat, loc.lng)
+        except Exception:  # best effort; the City API can be slow or down
+            basin = None
+        if basin:
+            item["basin"] = {**basin, "distance_m": Decimal(str(basin["distance_m"]))}
     if draft.triage and draft.triage.status == "done":
         t = draft.triage
         item["ai"] = {
@@ -240,6 +250,7 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         if is_owner or meta.get("photo_public")
         else [],
         photo_public=bool(meta.get("photo_public", False)),
+        basin=from_dynamo(meta.get("basin")),
         supported_by_me=False if is_owner else supported_by(report_id, viewer_sub),
         ai=_ai(meta.get("ai")),
         supporter_count=int(meta.get("supporter_count", 0)),

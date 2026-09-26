@@ -190,6 +190,16 @@ function ReportView() {
                 Open in Maps ↗
               </a>
             </p>
+            {report.basin && (
+              <p
+                className="mt-1 text-sm text-muted"
+                data-testid="nearest-basin"
+              >
+                Nearest City catch basin: {report.basin.gisid}
+                {report.basin.street && ` on ${report.basin.street}`} (
+                {Math.round(report.basin.distance_m)} m away)
+              </p>
+            )}
           </section>
 
           {report.contact && (
