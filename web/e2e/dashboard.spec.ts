@@ -106,12 +106,8 @@ test.describe("dashboard and report details", () => {
   }) => {
     await page.goto("/");
     await signInFromHeader(page);
-    await fileReport(
-      page,
-      "Roads and Streets",
-      "Pothole",
-      "Race test pothole report.",
-    );
+    // Not a pothole: the duplicates spec seeds a neighbor's pothole at this spot.
+    await fileReport(page, "Drainage", "Street Flooding", "Race test report.");
     await page.goto("/dashboard/");
     const list = page.getByRole("list", { name: "Reports" });
     await expect(list.getByRole("link").first()).toBeVisible();
