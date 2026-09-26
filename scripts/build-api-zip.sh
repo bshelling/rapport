@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Package the FastAPI app as an AWS Lambda zip (python3.12, arm64).
+# Usage: scripts/build-api-zip.sh [output-zip]   (default: dist/api.zip)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="${1:-$ROOT/dist/api.zip}"
+BUILD="$(mktemp -d)"
+trap 'rm -rf "$BUILD"' EXIT
+
+cd "$ROOT/api"
+uv export --frozen --no-dev --no-hashes --no-emit-project -o "$BUILD/requirements.txt" >/dev/null
+uv pip install -q \
+  --target "$BUILD/pkg" \
+  --python-platform aarch64-manylinux2014 \
+  --python-version 3.12 \
+  --only-binary=:all: \
+  -r "$BUILD/requirements.txt"
+cp -R app "$BUILD/pkg/app"
+find "$BUILD/pkg" -name "__pycache__" -type d -prune -exec rm -rf {} +
+
+mkdir -p "$(dirname "$OUT")"
+rm -f "$OUT"
+(cd "$BUILD/pkg" && zip -qr -X "$OUT" .)
+echo "built $OUT ($(du -h "$OUT" | cut -f1))"
