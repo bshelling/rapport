@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     #   jwt   - verify the Cognito ID token here (local dev against real Cognito)
     #   dev   - trust an X-Dev-User header (tests / offline; never in AWS)
     auth_mode: Literal["apigw", "jwt", "dev"] = "dev"
+
+    # AI: "live" calls Bedrock + TypeSafe; "fake" is deterministic (tests/offline).
+    ai_mode: Literal["live", "fake"] = "fake"
+    claude_model: str = "anthropic.claude-opus-5"
+    typesafe_key_param: str = "/rapport/prod/typesafe_api_key"
+    typesafe_api_key: str = ""  # optional override, e.g. for local runs
+    # "lambda": async-invoke the worker function; "inline": run in-process (local dev).
+    worker_mode: Literal["lambda", "inline"] = "inline"
+    worker_function: str = ""
     cognito_issuer: str = ""
     cognito_client_id: str = ""
 

@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from ulid import ULID
 
 from app import storage
-from app.db import get_table
+from app.db import from_dynamo, get_table
 from app.models.draft import MAX_PHOTOS, Draft, DraftPatch, Photo
 
 DRAFT_TTL_SECONDS = 7 * 24 * 3600
@@ -39,6 +39,8 @@ def _to_model(item: dict) -> Draft:
         location=_floats(item.get("location")),
         description_html=item.get("description_html"),
         photos=[Photo(**p) for p in item.get("photos", [])],
+        triage=from_dynamo(item.get("triage")),
+        photos_private=bool(item.get("photos_private", False)),
         created_at=item["created_at"],
         updated_at=item["updated_at"],
     )
@@ -142,6 +144,20 @@ def remove_photo(draft_id: str, user_sub: str, photo_id: str) -> Draft:
         raise DraftNotFound(photo_id)
     item["photos"] = kept
     item["updated_at"] = _now()
+    # Triage described the removed photo; it no longer applies.
+    if (item.get("triage") or {}).get("photo_id") == photo_id:
+        item.pop("triage", None)
+        item.pop("photos_private", None)
     get_table().put_item(Item=item)
     storage.delete(next(p["key"] for p in photos if p["id"] == photo_id))
     return get(draft_id, user_sub)
+
+
+def confirm_upload(draft_id: str, user_sub: str, photo_id: str) -> bool:
+    """True if the photo is in S3 and is the one triage should look at (the first)."""
+    item = _get_item(draft_id, user_sub)
+    photos = item.get("photos", [])
+    photo = next((p for p in photos if p["id"] == photo_id), None)
+    if photo is None or not storage.exists(photo["key"]):
+        raise DraftNotFound(photo_id)
+    return photos[0]["id"] == photo_id

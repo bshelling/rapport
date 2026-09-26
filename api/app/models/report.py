@@ -57,6 +57,18 @@ class ReportPhoto(BaseModel):
     url: str
 
 
+class ReportAI(BaseModel):
+    """AI assessment captured at submission (Claude vision + Jev)."""
+
+    suggested_reason: str | None = None
+    reason_confidence: float | None = None
+    severity_level: int | None = None
+    severity_label: str | None = None
+    safety_hazard: float | None = None
+    matches_selection: float | None = None
+    scene_description: str | None = None
+
+
 class ReportDetail(BaseModel):
     """Full report. Contact info is only included for the reporter."""
 
@@ -68,6 +80,8 @@ class ReportDetail(BaseModel):
     location: Location
     description_html: str
     photos: list[ReportPhoto]
+    photo_public: bool = False
+    ai: ReportAI | None = None
     supporter_count: int
     nola311_ticket: str | None
     contact: Contact | None

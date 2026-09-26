@@ -68,16 +68,17 @@ module "auth" {
 }
 
 module "api" {
-  source            = "../../modules/api"
-  env               = local.env
-  zip_path          = var.api_zip_path
-  app_version       = var.app_version
-  table_name        = module.data.table_name
-  table_arn         = module.data.table_arn
-  photo_bucket_name = module.data.photo_bucket_name
-  photo_bucket_arn  = module.data.photo_bucket_arn
-  jwt_issuer        = module.auth.issuer
-  jwt_audience      = [module.auth.client_id]
+  source             = "../../modules/api"
+  env                = local.env
+  zip_path           = var.api_zip_path
+  app_version        = var.app_version
+  table_name         = module.data.table_name
+  table_arn          = module.data.table_arn
+  photo_bucket_name  = module.data.photo_bucket_name
+  photo_bucket_arn   = module.data.photo_bucket_arn
+  jwt_issuer         = module.auth.issuer
+  jwt_audience       = [module.auth.client_id]
+  typesafe_key_param = "/rapport/${local.env}/typesafe_api_key"
 }
 
 module "web" {

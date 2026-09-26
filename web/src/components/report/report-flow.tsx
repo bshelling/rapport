@@ -60,6 +60,28 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
   // Effects can run twice (React dev mode, fast auth changes); only ever load
   // one draft at a time so we don't create orphans.
   const loading = useRef(false);
+  // While AI triage runs in the background, poll the draft for its insights.
+  const [watching, setWatching] = useState(false);
+  const watch = useCallback(() => setWatching(true), []);
+
+  const draftId = draft?.id;
+  useEffect(() => {
+    if (!watching || !draftId) return;
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      try {
+        const latest = await getDraft(draftId);
+        setDraft(latest);
+        const status = latest.triage?.status;
+        if (status === "done" || status === "error" || tries >= 30)
+          setWatching(false);
+      } catch {
+        if (tries >= 30) setWatching(false);
+      }
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [watching, draftId]);
 
   useEffect(() => {
     if (auth.status !== "signedIn" || draft || loading.current) return;
@@ -191,6 +213,8 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
                     draft={draft}
                     onSaved={setDraft}
                     onNext={() => goTo(2)}
+                    watching={watching}
+                    watch={watch}
                   />
                 )}
                 {step === 2 && (
@@ -207,6 +231,8 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
                     onSaved={setDraft}
                     onBack={() => goTo(2)}
                     onSubmitted={onSubmitted}
+                    watching={watching}
+                    watch={watch}
                   />
                 )}
               </motion.div>

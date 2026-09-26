@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.catalog import REASONS_BY_TYPE, is_valid_pair
 from app.geo import in_new_orleans
 from app.html import plain_text, sanitize
+from app.models.insights import Triage
 from app.models.profile import Contact
 
 MAX_PHOTOS = 3
@@ -75,6 +76,8 @@ class Draft(BaseModel):
     location: Location | None = None
     description_html: str | None = None
     photos: list[Photo] = []
+    triage: Triage | None = None
+    photos_private: bool = False
     created_at: str
     updated_at: str
 

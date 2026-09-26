@@ -1,42 +1,45 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
+import { InsightsPanel } from "@/components/report/insights";
 import { RichText } from "@/components/report/rich-text";
 import { StepNav } from "@/components/report/step-nav";
+import { MAX_PHOTOS, usePhotos } from "@/components/report/use-photos";
 import {
   type ApiError,
   type Draft,
   type DraftLocation,
-  deletePhoto,
   patchDraft,
+  type ReasonOption,
   type Report,
-  reservePhoto,
   submitDraft,
-  uploadToS3,
 } from "@/lib/api";
 import { inNewOrleans } from "@/lib/geo";
-import { preparePhoto } from "@/lib/image";
 
-const MAX_PHOTOS = 3;
 const MIN_TEXT = 10;
 const MAX_TEXT = 2000;
 
-type PhotoItem = {
-  id: string; // server photo id, or a temp id while preparing
-  previewUrl: string;
-  status: "uploading" | "done" | "error";
-};
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 export function StepDescribe({
   draft,
   onSaved,
   onBack,
   onSubmitted,
+  watching,
+  watch,
 }: {
   draft: Draft;
   onSaved: (d: Draft) => void;
   onBack: () => void;
   onSubmitted: (r: Report) => void;
+  watching: boolean;
+  watch: () => void;
 }) {
   const id = useId();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -46,19 +49,14 @@ export function StepDescribe({
   const [address, setAddress] = useState(draft.location?.address ?? "");
   const [locating, setLocating] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<PhotoItem[]>(
-    draft.photos.map((p) => ({
-      id: p.id,
-      previewUrl: p.url ?? "",
-      status: "done",
-    })),
-  );
   const [html, setHtml] = useState(draft.description_html ?? "");
   const [textLength, setTextLength] = useState(
     (draft.description_html ?? "").replace(/<[^>]+>/g, "").trim().length,
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped to re-mount the editor when a suggested description is applied.
+  const [editorKey, setEditorKey] = useState(0);
 
   const setPoint = (
     lat: number,
@@ -97,53 +95,43 @@ export function StepDescribe({
     );
   };
 
-  const addFiles = async (files: FileList | null) => {
-    if (!files) return;
-    const room = MAX_PHOTOS - photos.length;
-    for (const file of Array.from(files).slice(0, room)) {
-      const tempId = crypto.randomUUID();
-      try {
-        const prepared = await preparePhoto(file);
-        setPhotos((p) => [
-          ...p,
-          { id: tempId, previewUrl: prepared.previewUrl, status: "uploading" },
-        ]);
-        if (
-          prepared.gps &&
-          !location &&
-          setPoint(prepared.gps.lat, prepared.gps.lng, "photo")
-        ) {
-          setLocationNote("Location set from your photo.");
-        }
-        const upload = await reservePhoto(draft.id);
-        try {
-          await uploadToS3(upload, prepared.blob);
-        } catch (err) {
-          await deletePhoto(draft.id, upload.photo.id).catch(() => undefined);
-          throw err;
-        }
-        setPhotos((p) =>
-          p.map((x) =>
-            x.id === tempId ? { ...x, id: upload.photo.id, status: "done" } : x,
-          ),
-        );
-      } catch (err) {
-        console.error(err);
-        setPhotos((p) =>
-          p.map((x) => (x.id === tempId ? { ...x, status: "error" } : x)),
-        );
-      }
+  const onGps = (point: { lat: number; lng: number }) => {
+    if (!location && setPoint(point.lat, point.lng, "photo")) {
+      setLocationNote("Location set from your photo.");
     }
-    if (fileInput.current) fileInput.current.value = "";
+  };
+  const onUploaded = useCallback(
+    (updated: Draft) => {
+      onSaved(updated);
+      watch();
+    },
+    [onSaved, watch],
+  );
+  const { photos, addFiles, removePhoto, uploading } = usePhotos(draft, {
+    onGps,
+    onUploaded,
+  });
+
+  const switchReason = async (option: ReasonOption) => {
+    if (!option.request_type) return;
+    try {
+      onSaved(
+        await patchDraft(draft.id, {
+          request_type: option.request_type,
+          request_reason: option.request_reason,
+        }),
+      );
+      watch();
+    } catch {
+      setError("Couldn't switch the request reason. Please try again.");
+    }
   };
 
-  const removePhoto = async (item: PhotoItem) => {
-    setPhotos((p) => p.filter((x) => x.id !== item.id));
-    if (item.status === "done")
-      await deletePhoto(draft.id, item.id).catch(() => undefined);
+  const useDescription = (text: string) => {
+    setHtml(`<p>${escapeHtml(text)}</p>`);
+    setTextLength(text.trim().length);
+    setEditorKey((k) => k + 1);
   };
-
-  const uploading = photos.some((p) => p.status === "uploading");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,7 +265,10 @@ export function StepDescribe({
                 accept="image/*"
                 multiple
                 className="sr-only"
-                onChange={(e) => addFiles(e.target.files)}
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  if (fileInput.current) fileInput.current.value = "";
+                }}
                 data-testid="photo-input"
               />
             </label>
@@ -289,11 +280,19 @@ export function StepDescribe({
         </p>
       </section>
 
+      <InsightsPanel
+        draft={draft}
+        watching={watching}
+        onSwitchReason={switchReason}
+        onUseDescription={useDescription}
+      />
+
       <section className="mt-6">
         <h3 id={`${id}-desc`} className="mb-2 font-medium">
           Description
         </h3>
         <RichText
+          key={editorKey}
           id={`${id}-desc-input`}
           labelledBy={`${id}-desc`}
           value={html}

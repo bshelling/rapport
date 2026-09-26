@@ -104,6 +104,44 @@ export type DraftLocation = {
 
 export type DraftPhoto = { id: string; key: string; url?: string | null };
 
+export type ReasonOption = {
+  request_type: string | null;
+  request_reason: string;
+  probability: number;
+};
+
+export type Triage = {
+  status: "pending" | "done" | "error";
+  photo_id: string;
+  observation?: {
+    scene_description: string;
+    visible_objects: string[];
+    landmarks: string[];
+    image_quality:
+      | "good"
+      | "blurry"
+      | "too_dark"
+      | "too_far"
+      | "not_a_street_scene";
+    contains_person_or_plate: boolean;
+    suggested_description: string;
+  };
+  suggested?: ReasonOption;
+  alternatives?: ReasonOption[];
+  reason_confidence?: number;
+  severity?: {
+    level: number;
+    label: string;
+    score: number;
+    confidence: number;
+  };
+  is_actionable?: number;
+  safety_hazard?: number;
+  matches_selection?: number | null;
+  error?: string;
+  updated_at: string;
+};
+
 export type Draft = {
   id: string;
   step: number;
@@ -113,6 +151,8 @@ export type Draft = {
   location: DraftLocation | null;
   description_html: string | null;
   photos: DraftPhoto[];
+  triage: Triage | null;
+  photos_private: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -161,6 +201,12 @@ export const reservePhoto = (id: string) =>
   request<PhotoUpload>(`/api/drafts/${id}/photos`, {
     method: "POST",
     body: JSON.stringify({ content_type: "image/jpeg" }),
+    auth: true,
+  });
+
+export const confirmUpload = (id: string, photoId: string) =>
+  request<Draft>(`/api/drafts/${id}/photos/${photoId}/uploaded`, {
+    method: "POST",
     auth: true,
   });
 
@@ -227,6 +273,16 @@ export type ReportDetail = {
   location: DraftLocation;
   description_html: string;
   photos: { key: string; url: string }[];
+  photo_public: boolean;
+  ai: {
+    suggested_reason?: string;
+    reason_confidence?: number;
+    severity_level?: number;
+    severity_label?: string;
+    safety_hazard?: number;
+    matches_selection?: number;
+    scene_description?: string;
+  } | null;
   supporter_count: number;
   nola311_ticket: string | null;
   contact: Contact | null;
