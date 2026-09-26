@@ -26,7 +26,7 @@ jobs:
       - name: Lint (Biome)
         run: bunx biome ci .
       - name: Typecheck
-        run: bunx tsc --noEmit
+        run: bun run typecheck
       - name: Unit tests
         run: bun test
       - name: Build (static export)
@@ -39,7 +39,7 @@ jobs:
         working-directory: api
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - run: uv sync --frozen
       - name: Lint (Ruff)
         run: uv run ruff check . && uv run ruff format --check .
@@ -61,7 +61,7 @@ jobs:
         with:
           terraform_wrapper: false
       - uses: terraform-linters/setup-tflint@v6
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Format
         run: terraform fmt -check -recursive infra
       - name: TFLint

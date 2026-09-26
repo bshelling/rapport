@@ -42,7 +42,7 @@ e2e:
 
 lint:
 	cd api && uv run ruff check . && uv run ruff format --check .
-	cd web && bunx biome check . && bunx tsc --noEmit
+	cd web && bunx biome check . && bun run typecheck
 	terraform fmt -check -recursive infra
 
 build-api:
