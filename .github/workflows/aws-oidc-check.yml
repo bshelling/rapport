@@ -1,0 +1,26 @@
+# Proves GitHub Actions can assume the Rapport AWS roles via OIDC.
+name: aws-oidc-check
+
+on:
+  pull_request:
+    paths:
+      - "infra/bootstrap/**"
+      - ".github/workflows/aws-oidc-check.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan-role:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Caller identity
+        run: aws sts get-caller-identity
+      - name: Read Terraform state bucket
+        run: aws s3 ls s3://rapport-tfstate-322673434521/bootstrap/

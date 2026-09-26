@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "aws-api": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "rapport",
+        "AWS_REGION": "us-east-1"
+      }
+    },
+    "aws-terraform": {
+      "command": "uvx",
+      "args": ["awslabs.terraform-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "rapport",
+        "AWS_REGION": "us-east-1"
+      }
+    },
+    "aws-agentcore": {
+      "command": "uvx",
+      "args": ["awslabs.amazon-bedrock-agentcore-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "rapport",
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}
