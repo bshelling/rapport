@@ -128,6 +128,35 @@ function ReportView() {
             />
           </section>
 
+          {report.ai && (
+            <section
+              aria-labelledby="ai-heading"
+              className="rounded-2xl border border-accent/30 bg-accent/5 p-4"
+              data-testid="ai-assessment"
+            >
+              <h2 id="ai-heading" className="mb-2 font-semibold">
+                <span aria-hidden>✨</span> Photo assessment
+              </h2>
+              <ul className="flex flex-wrap gap-2 text-sm">
+                {report.ai.severity_label && (
+                  <li className="rounded-full border border-border bg-background px-3 py-1">
+                    Severity: <strong>{report.ai.severity_label}</strong>
+                  </li>
+                )}
+                {(report.ai.safety_hazard ?? 0) >= 0.6 && (
+                  <li className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1">
+                    Possible safety hazard
+                  </li>
+                )}
+              </ul>
+              {report.ai.scene_description && (
+                <p className="mt-2 text-sm text-muted">
+                  {report.ai.scene_description}
+                </p>
+              )}
+            </section>
+          )}
+
           <section aria-labelledby="loc-heading">
             <h2 id="loc-heading" className="mb-2 font-semibold">
               Location

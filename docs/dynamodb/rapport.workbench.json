@@ -129,6 +129,22 @@
         {
           "AttributeName": "note",
           "AttributeType": "S"
+        },
+        {
+          "AttributeName": "triage",
+          "AttributeType": "M"
+        },
+        {
+          "AttributeName": "photos_private",
+          "AttributeType": "BOOL"
+        },
+        {
+          "AttributeName": "ai",
+          "AttributeType": "M"
+        },
+        {
+          "AttributeName": "photo_public",
+          "AttributeType": "BOOL"
         }
       ],
       "TableFacets": [
@@ -254,7 +270,9 @@
             "lng",
             "status",
             "supporter_count",
-            "created_at"
+            "created_at",
+            "ai",
+            "photo_public"
           ],
           "DataAccess": {
             "MySql": {}
@@ -349,7 +367,9 @@
           "NonKeyAttributes": [
             "user_sub",
             "step",
-            "expires_at"
+            "expires_at",
+            "triage",
+            "photos_private"
           ],
           "DataAccess": {
             "MySql": {}

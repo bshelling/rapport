@@ -12,6 +12,7 @@ from app.geo import geohash
 from app.models.report import (
     OPEN_STATUSES,
     Report,
+    ReportAI,
     ReportDetail,
     ReportEvent,
     ReportPage,
@@ -19,6 +20,10 @@ from app.models.report import (
     ReportSummary,
 )
 from app.services import drafts
+
+
+def _dec(value: float | None) -> Decimal | None:
+    return None if value is None else Decimal(str(round(value, 4)))
 
 
 def _event_sk(now: str) -> str:
@@ -77,11 +82,27 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
         "geohash": geohash(loc.lat, loc.lng, 9),
         "description_html": draft.description_html,
         "photo_keys": photo_keys,
+        # Photos are shown to others only when AI triage ran and saw no people/plates.
+        "photo_public": bool(photo_keys)
+        and draft.triage is not None
+        and draft.triage.status == "done"
+        and not draft.photos_private,
         "status": "submitted",
         "supporter_count": 0,
         "created_at": now,
         "updated_at": now,
     }
+    if draft.triage and draft.triage.status == "done":
+        t = draft.triage
+        item["ai"] = {
+            "suggested_reason": t.suggested.request_reason if t.suggested else None,
+            "reason_confidence": _dec(t.reason_confidence),
+            "severity_level": t.severity.level if t.severity else None,
+            "severity_label": t.severity.label if t.severity else None,
+            "safety_hazard": _dec(t.safety_hazard),
+            "matches_selection": _dec(t.matches_selection),
+            "scene_description": t.observation.scene_description if t.observation else None,
+        }
     event = {
         "PK": f"REPORT#{report_id}",
         "SK": _event_sk(now),
@@ -191,6 +212,14 @@ def _items(report_id: str) -> tuple[dict, list[dict]]:
     return meta, events
 
 
+def _ai(ai: dict | None) -> ReportAI | None:
+    if not ai:
+        return None
+    return ReportAI(
+        **{k: (float(v) if isinstance(v, Decimal) else v) for k, v in ai.items() if v is not None}
+    )
+
+
 def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
     meta, events = _items(report_id)
     is_owner = meta.get("user_sub") == viewer_sub
@@ -203,10 +232,12 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         status=meta["status"],
         location={**loc, "lat": float(loc["lat"]), "lng": float(loc["lng"])},
         description_html=meta["description_html"],
-        # Photos stay owner-only until AI triage can screen them for people/plates.
+        # Others only see photos that AI triage screened (no people or plates).
         photos=[ReportPhoto(key=k, url=storage.presign_get(k)) for k in meta.get("photo_keys", [])]
-        if is_owner
+        if is_owner or meta.get("photo_public")
         else [],
+        photo_public=bool(meta.get("photo_public", False)),
+        ai=_ai(meta.get("ai")),
         supporter_count=int(meta.get("supporter_count", 0)),
         nola311_ticket=meta.get("nola311_ticket"),
         contact=meta.get("contact") if is_owner else None,

@@ -51,6 +51,23 @@ variable "jwt_audience" {
   type        = list(string)
 }
 
+variable "claude_model" {
+  description = "Bedrock model ID used for photo triage."
+  type        = string
+  default     = "anthropic.claude-opus-5"
+}
+
+variable "typesafe_key_param" {
+  description = "SSM SecureString holding the TypeSafe (Jev) API key (created out of band)."
+  type        = string
+}
+
+variable "ai_mode" {
+  description = "live = Bedrock + TypeSafe; fake = deterministic stand-ins."
+  type        = string
+  default     = "live"
+}
+
 variable "public_routes" {
   description = "Routes served without sign-in. Everything else under /api requires a valid token."
   type        = list(string)
@@ -64,8 +81,12 @@ variable "public_routes" {
 }
 
 locals {
-  name = "rapport-api-${var.env}"
+  name        = "rapport-api-${var.env}"
+  worker_name = "rapport-worker-${var.env}"
 }
+
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
 
 data "aws_iam_policy_document" "lambda_trust" {
   statement {
@@ -103,6 +124,11 @@ data "aws_iam_policy_document" "api" {
     actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${var.photo_bucket_arn}/*"]
   }
+  statement {
+    sid       = "StartWorker"
+    actions   = ["lambda:InvokeFunction"]
+    resources = ["arn:aws:lambda:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:function:${local.worker_name}"]
+  }
   # Lets HeadObject report 404 (not 403) for photos that were never uploaded.
   statement {
     sid       = "PhotosList"
@@ -135,16 +161,114 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      RAPPORT_ENVIRONMENT  = var.env
-      RAPPORT_VERSION      = var.app_version
-      RAPPORT_CORS_ORIGINS = "[]"
-      RAPPORT_TABLE_NAME   = var.table_name
-      RAPPORT_PHOTO_BUCKET = var.photo_bucket_name
-      RAPPORT_AUTH_MODE    = "apigw"
+      RAPPORT_ENVIRONMENT     = var.env
+      RAPPORT_VERSION         = var.app_version
+      RAPPORT_CORS_ORIGINS    = "[]"
+      RAPPORT_TABLE_NAME      = var.table_name
+      RAPPORT_PHOTO_BUCKET    = var.photo_bucket_name
+      RAPPORT_AUTH_MODE       = "apigw"
+      RAPPORT_WORKER_MODE     = "lambda"
+      RAPPORT_WORKER_FUNCTION = local.worker_name
+      RAPPORT_AI_MODE         = var.ai_mode
     }
   }
 
   depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy_attachment.logs]
+}
+
+# --- Worker: AI processing, invoked asynchronously by the API --------------------
+
+resource "aws_iam_role" "worker" {
+  name               = local.worker_name
+  assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "worker_logs" {
+  role       = aws_iam_role.worker.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "worker" {
+  statement {
+    sid       = "Drafts"
+    actions   = ["dynamodb:GetItem", "dynamodb:UpdateItem"]
+    resources = [var.table_arn]
+  }
+  statement {
+    sid       = "ReadPhotos"
+    actions   = ["s3:GetObject"]
+    resources = ["${var.photo_bucket_arn}/drafts/*"]
+  }
+  statement {
+    sid = "Claude"
+    actions = [
+      "bedrock-mantle:CreateInference",
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid       = "TypeSafeKey"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${var.typesafe_key_param}"]
+  }
+  statement {
+    sid       = "DecryptViaSsm"
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "worker" {
+  name   = local.worker_name
+  role   = aws_iam_role.worker.id
+  policy = data.aws_iam_policy_document.worker.json
+}
+
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/aws/lambda/${local.worker_name}"
+  retention_in_days = 14
+}
+
+resource "aws_lambda_function" "worker" {
+  function_name    = local.worker_name
+  role             = aws_iam_role.worker.arn
+  runtime          = "python3.12"
+  architectures    = ["arm64"]
+  handler          = "app.worker.handler"
+  filename         = var.zip_path
+  source_code_hash = filebase64sha256(var.zip_path)
+  memory_size      = 1024
+  timeout          = 90
+  # Caps concurrent AI calls (and spend).
+  reserved_concurrent_executions = 5
+
+  environment {
+    variables = {
+      RAPPORT_ENVIRONMENT        = var.env
+      RAPPORT_VERSION            = var.app_version
+      RAPPORT_TABLE_NAME         = var.table_name
+      RAPPORT_PHOTO_BUCKET       = var.photo_bucket_name
+      RAPPORT_AI_MODE            = var.ai_mode
+      RAPPORT_CLAUDE_MODEL       = var.claude_model
+      RAPPORT_TYPESAFE_KEY_PARAM = var.typesafe_key_param
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.worker, aws_iam_role_policy_attachment.worker_logs]
+}
+
+# No automatic retries: a failed triage is recorded on the draft instead of re-billed.
+resource "aws_lambda_function_event_invoke_config" "worker" {
+  function_name                = aws_lambda_function.worker.function_name
+  maximum_retry_attempts       = 0
+  maximum_event_age_in_seconds = 300
 }
 
 resource "aws_apigatewayv2_api" "api" {
@@ -213,4 +337,8 @@ output "api_endpoint" {
 
 output "function_name" {
   value = aws_lambda_function.api.function_name
+}
+
+output "worker_function_name" {
+  value = aws_lambda_function.worker.function_name
 }

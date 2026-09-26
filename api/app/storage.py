@@ -65,3 +65,7 @@ def move(src: str, dst: str) -> None:
 
 def delete(key: str) -> None:
     _s3().delete_object(Bucket=_bucket(), Key=key)
+
+
+def read(key: str) -> bytes:
+    return _s3().get_object(Bucket=_bucket(), Key=key)["Body"].read()
