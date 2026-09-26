@@ -3,14 +3,10 @@ variable "region" {
   default = "us-east-1"
 }
 
-variable "github_owner" {
-  type    = string
-  default = "bshelling"
-}
-
-variable "github_repo" {
-  type    = string
-  default = "rapport"
+variable "github_sub_prefix" {
+  description = "OIDC sub-claim prefix for the repo (gh api repos/OWNER/REPO/actions/oidc/customization/sub)."
+  type        = string
+  default     = "repo:bshelling@3427089/rapport@1389535830"
 }
 
 variable "claude_code_trusted_principals" {

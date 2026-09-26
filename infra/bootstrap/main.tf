@@ -41,7 +41,9 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id   = data.aws_caller_identity.current.account_id
   state_bucket = "rapport-tfstate-${local.account_id}"
-  repo         = "${var.github_owner}/${var.github_repo}"
+  # GitHub issues immutable subject claims for this repo, e.g.
+  # repo:bshelling@3427089/rapport@1389535830:environment:prod
+  sub_prefix = var.github_sub_prefix
 }
 
 # --- Terraform state bucket -------------------------------------------------
@@ -172,8 +174,8 @@ data "aws_iam_policy_document" "gha_plan_trust" {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${local.repo}:pull_request",
-        "repo:${local.repo}:ref:refs/heads/*",
+        "${local.sub_prefix}:pull_request",
+        "${local.sub_prefix}:ref:refs/heads/*",
       ]
     }
   }
@@ -212,7 +214,7 @@ data "aws_iam_policy_document" "gha_deploy_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.repo}:environment:prod"]
+      values   = ["${local.sub_prefix}:environment:prod"]
     }
   }
 }

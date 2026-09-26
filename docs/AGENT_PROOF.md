@@ -28,4 +28,6 @@ $ aws sts get-caller-identity --profile rapport
 
 It then verified least-privilege scoping with the IAM policy simulator (`iam:CreateRole` allowed only for `rapport-*`; `iam:CreateUser` denied; plan role read-only).
 
+The PR's `aws-oidc-check` workflow initially failed (`Not authorized to perform sts:AssumeRoleWithWebIdentity`). Claude Code diagnosed it by inspecting the OIDC provider and the repo's OIDC settings (`gh api repos/bshelling/rapport/actions/oidc/customization/sub`): the repo issues **immutable subject claims** (`repo:bshelling@3427089/rapport@1389535830:…`). It updated both trust policies, re-applied, and the check passed.
+
 <!-- Further entries (screenshots, CloudTrail lookups, deploy logs) are appended per PR. -->
