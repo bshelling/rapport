@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.config import get_settings
-from app.routers import health, me, meta
+from app.routers import catalog, drafts, health, me, meta
 
 
 def create_app() -> FastAPI:
@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    for router in (health.router, meta.router, me.router):
+    for router in (health.router, meta.router, catalog.router, me.router, drafts.router):
         app.include_router(router, prefix="/api")
     return app
 

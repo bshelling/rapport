@@ -29,3 +29,7 @@ export function formatPhone(digits: string | null | undefined): string {
   if (!digits || digits.length !== 10) return digits ?? "";
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
+
+export const contactSchema = profileSchema.omit({ neighborhood: true });
+export type ContactFormValues = z.input<typeof contactSchema>;
+export type ContactFormOutput = z.output<typeof contactSchema>;

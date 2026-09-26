@@ -76,3 +76,112 @@ export const getNeighborhoods = () =>
   request<{ neighborhoods: string[] }>("/api/neighborhoods").then(
     (r) => r.neighborhoods,
   );
+
+// --- Service catalog ---------------------------------------------------------
+
+export type Reason = { name: string; description: string };
+export type ServiceType = {
+  name: string;
+  description: string;
+  reasons: Reason[];
+};
+
+export const getServiceCatalog = () =>
+  request<{ types: ServiceType[] }>("/api/service-catalog").then(
+    (r) => r.types,
+  );
+
+// --- Drafts ------------------------------------------------------------------
+
+export type Contact = Omit<ProfileInput, "neighborhood">;
+
+export type DraftLocation = {
+  lat: number;
+  lng: number;
+  address?: string | null;
+  source: "gps" | "photo" | "manual";
+};
+
+export type DraftPhoto = { id: string; key: string; url?: string | null };
+
+export type Draft = {
+  id: string;
+  step: number;
+  request_type: string | null;
+  request_reason: string | null;
+  contact: Contact | null;
+  location: DraftLocation | null;
+  description_html: string | null;
+  photos: DraftPhoto[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type DraftPatch = Partial<
+  Pick<
+    Draft,
+    | "step"
+    | "request_type"
+    | "request_reason"
+    | "contact"
+    | "location"
+    | "description_html"
+  >
+>;
+
+export type PhotoUpload = {
+  photo: DraftPhoto;
+  upload_url: string;
+  fields: Record<string, string>;
+  max_bytes: number;
+};
+
+export type Report = {
+  id: string;
+  request_type: string;
+  request_reason: string;
+  status: string;
+  created_at: string;
+};
+
+export const createDraft = () =>
+  request<Draft>("/api/drafts", { method: "POST", auth: true });
+
+export const getDraft = (id: string) =>
+  request<Draft>(`/api/drafts/${id}`, { auth: true });
+
+export const patchDraft = (id: string, body: DraftPatch) =>
+  request<Draft>(`/api/drafts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    auth: true,
+  });
+
+export const reservePhoto = (id: string) =>
+  request<PhotoUpload>(`/api/drafts/${id}/photos`, {
+    method: "POST",
+    body: JSON.stringify({ content_type: "image/jpeg" }),
+    auth: true,
+  });
+
+export const deletePhoto = (id: string, photoId: string) =>
+  request<Draft>(`/api/drafts/${id}/photos/${photoId}`, {
+    method: "DELETE",
+    auth: true,
+  });
+
+export const submitDraft = (id: string) =>
+  request<Report>(`/api/drafts/${id}/submit`, { method: "POST", auth: true });
+
+/** Upload straight to S3 with the presigned POST; S3 enforces type and size. */
+export async function uploadToS3(
+  upload: PhotoUpload,
+  blob: Blob,
+): Promise<void> {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(upload.fields)) form.append(k, v);
+  form.append("file", blob, "photo.jpg");
+  const res = await fetch(upload.upload_url, { method: "POST", body: form });
+  if (!res.ok)
+    throw new ApiError(res.status, await res.text().catch(() => undefined));
+}

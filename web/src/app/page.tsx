@@ -1,3 +1,5 @@
+import { ReportButton } from "@/components/report-button";
+
 const services = [
   {
     type: "Roads and Streets",
@@ -33,6 +35,9 @@ export default function Home() {
           Rapport helps you file street and drainage requests the way NOLA 311
           expects them, then keeps track of what happens next.
         </p>
+        <div>
+          <ReportButton />
+        </div>
       </section>
 
       <section

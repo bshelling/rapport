@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      allow_destroy:
+        description: "Allow a plan that deletes or replaces resources"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-prod
@@ -42,7 +47,17 @@ jobs:
         working-directory: infra/envs/prod
         run: |
           terraform init -input=false
-          terraform apply -input=false -auto-approve -var "app_version=${GITHUB_SHA}"
+          terraform plan -input=false -no-color -var "app_version=${GITHUB_SHA}" -out=tfplan
+          # Guard: never delete/replace resources unless explicitly allowed. This also
+          # protects against transient "resource has been deleted" misreads on refresh.
+          terraform show -json tfplan > plan.json
+          destroying=$(jq -r '.resource_changes[] | select(.change.actions | index("delete")) | .address' plan.json)
+          if [ -n "$destroying" ] && [ "${{ inputs.allow_destroy }}" != "true" ]; then
+            echo "::error::Plan would delete or replace resources:"
+            echo "$destroying"
+            exit 1
+          fi
+          terraform apply -input=false tfplan
           echo "site_url=$(terraform output -raw site_url)" >> "$GITHUB_OUTPUT"
           echo "site_bucket=$(terraform output -raw site_bucket)" >> "$GITHUB_OUTPUT"
           echo "distribution_id=$(terraform output -raw distribution_id)" >> "$GITHUB_OUTPUT"
@@ -95,6 +110,10 @@ jobs:
           export E2E_PASSWORD
           bunx playwright install --with-deps chromium
           bunx playwright test --workers=1
+
+      - name: Remove Playwright test data
+        if: always() && steps.tf.outcome == 'success'
+        run: uv run -q --with boto3 scripts/cleanup-e2e.py prod
 
       - uses: actions/upload-artifact@v7
         if: always()

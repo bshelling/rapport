@@ -45,7 +45,7 @@ e2e:
 	cd web && bunx playwright test
 
 lint:
-	cd api && uv run ruff check . && uv run ruff format --check .
+	cd api && uv run ruff check . ../scripts && uv run ruff format --check . ../scripts
 	cd web && bunx biome check . && bun run typecheck
 	terraform fmt -check -recursive infra
 

@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { completeCognitoLogin, hasE2EUser } from "./helpers";
 
 // Signs in through Cognito managed login with the e2e test user
 // (password in SSM /rapport/prod/e2e/password; see infra/modules/auth).
-const email = process.env.E2E_EMAIL;
-const password = process.env.E2E_PASSWORD;
 
 test.describe("profile", () => {
-  test.skip(!email || !password, "E2E_EMAIL / E2E_PASSWORD not set");
+  test.skip(!hasE2EUser, "E2E_EMAIL / E2E_PASSWORD not set");
 
   test("sign in, save profile, sign out", async ({ page }, testInfo) => {
     await page.goto("/profile/");
@@ -15,11 +14,7 @@ test.describe("profile", () => {
       .getByRole("button", { name: "Sign in" })
       .click();
 
-    await page.waitForURL(/amazoncognito\.com/);
-    await page.getByLabel("Email address").fill(email as string);
-    await page.getByLabel("Password", { exact: true }).fill(password as string);
-    await page.getByRole("button", { name: "Sign in" }).click();
-
+    await completeCognitoLogin(page);
     await page.waitForURL(/\/profile\/$/);
     const form = page.getByRole("form", { name: "Profile" });
     await expect(form).toBeVisible();
@@ -61,10 +56,7 @@ test.describe("profile", () => {
       .getByRole("main")
       .getByRole("button", { name: "Sign in" })
       .click();
-    await page.waitForURL(/amazoncognito\.com/);
-    await page.getByLabel("Email address").fill(email as string);
-    await page.getByLabel("Password", { exact: true }).fill(password as string);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await completeCognitoLogin(page);
     await page.waitForURL(/\/profile\/$/);
 
     const form = page.getByRole("form", { name: "Profile" });
