@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     ai_mode: Literal["live", "fake"] = "fake"
     claude_model: str = "anthropic.claude-opus-5"
     typesafe_key_param: str = "/rapport/prod/typesafe_api_key"
+    jev_model: str = "jev-latest"  # models.list(): jev-latest, jev-preview
     typesafe_api_key: str = ""  # optional override, e.g. for local runs
     # Place search/geocoding (Amazon Location): "live" or "fake" (local dev, tests).
     geo_mode: Literal["live", "fake"] = "fake"

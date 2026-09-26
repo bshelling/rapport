@@ -274,3 +274,20 @@ def test_client_is_chosen_by_model_id():
         vision.BedrockVision("us.anthropic.claude-opus-4-6-v1", "us-east-1").client,
         AnthropicBedrock,
     )
+
+
+def test_live_jev_uses_the_configured_model(monkeypatch):
+    seen = {}
+
+    class Capture:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+    monkeypatch.setattr(jev, "TypeSafeClient", Capture)
+    monkeypatch.setattr(jev, "_api_key", lambda: "test-key")
+    monkeypatch.setenv("RAPPORT_AI_MODE", "live")
+    get_settings.cache_clear()
+    jev.get_jev.cache_clear()
+    jev.get_jev()
+    # "jev" alone is rejected by the API ("Unknown model: jev").
+    assert seen["model"] == "jev-latest" and seen["api_key"] == "test-key"

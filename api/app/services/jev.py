@@ -110,10 +110,10 @@ class Jev(Protocol):
 
 
 class TypeSafeJev:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str):
         self.client = TypeSafeClient(
             api_key=api_key,
-            model="jev",
+            model=model,
             timeout=15.0,
             retry=RetryPolicy(max_retries=2, backoff_max=1.0, timeout=15.0),
         )
@@ -129,7 +129,7 @@ class TypeSafeJev:
         reason = res.choices["request_reason"]
         ranked = sorted(reason.probabilities.items(), key=lambda kv: kv[1], reverse=True)
         severity = res.scores["severity"]
-        # Score levels are 0-based in the API; our levels are 1-4.
+        # Score levels are 0-based in the API (verified live: 0.01 minor, 3.00 hazardous).
         level = min(max(round(severity.score) + 1, 1), 4)
         return JevResult(
             suggested=_option(reason.choice, reason.probabilities.get(reason.choice, 0.0)),
@@ -186,4 +186,4 @@ def _api_key() -> str:
 def get_jev() -> Jev:
     if get_settings().ai_mode == "fake":
         return FakeJev()
-    return TypeSafeJev(_api_key())
+    return TypeSafeJev(_api_key(), get_settings().jev_model)
