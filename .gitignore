@@ -38,3 +38,6 @@ build/
 # playwright
 playwright-report/
 test-results/
+
+# private notes (kept out of the repo)
+.local/

@@ -7,7 +7,7 @@ One-time, admin-applied stack that everything else depends on:
 | `rapport-tfstate-322673434521` | Terraform state (versioned, encrypted, S3-native locking) |
 | `rapport-gha-plan` | GitHub Actions on PRs — `ReadOnlyAccess` + state access |
 | `rapport-gha-deploy` | GitHub Actions in the `prod` environment (main only) — PowerUser + IAM limited to `rapport-*` |
-| `rapport-claude-code` | Claude Code sessions (`AWS_PROFILE=rapport`) — same permissions as deploy; its CloudTrail activity is the hackathon agent-connection proof |
+| `rapport-claude-code` | Claude Code sessions (`AWS_PROFILE=rapport`) — same permissions as deploy; activity is attributable in CloudTrail |
 
 The account's existing GitHub OIDC provider is reused, not recreated.
 

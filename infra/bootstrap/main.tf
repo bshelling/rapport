@@ -239,7 +239,7 @@ data "aws_iam_policy_document" "claude_code_trust" {
 
 resource "aws_iam_role" "claude_code" {
   name                 = "rapport-claude-code"
-  description          = "Assumed by Claude Code sessions building Rapport; used as hackathon proof via CloudTrail."
+  description          = "Assumed by Claude Code sessions building Rapport."
   assume_role_policy   = data.aws_iam_policy_document.claude_code_trust.json
   max_session_duration = 43200
 }
