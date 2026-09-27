@@ -165,3 +165,7 @@ output "table_name" {
 output "agent_runtime_arn" {
   value = module.agent.runtime_arn
 }
+
+output "demo_user_sub" {
+  value = module.auth.demo_user_sub
+}

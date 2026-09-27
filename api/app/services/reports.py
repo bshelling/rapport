@@ -189,6 +189,7 @@ def _summary(item: dict) -> ReportSummary:
         photo_count=len(photos),
         thumbnail_url=storage.presign_get(photos[0]) if photos else None,
         nola311_ticket=item.get("nola311_ticket"),
+        sample=bool(item.get("sample")),
         created_at=item["created_at"],
         updated_at=item["updated_at"],
     )
@@ -254,6 +255,7 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         supported_by_me=False if is_owner else supported_by(report_id, viewer_sub),
         ai=_ai(meta.get("ai")),
         supporter_count=int(meta.get("supporter_count", 0)),
+        sample=bool(meta.get("sample")),
         nola311_ticket=meta.get("nola311_ticket"),
         nola311_verified=bool(meta.get("nola311_verified", False)),
         suggested_ticket=from_dynamo(meta.get("suggested_ticket")) if is_owner else None,
@@ -380,6 +382,8 @@ def support(report_id: str, user_sub: str, draft_id: str | None = None) -> int:
         raise CannotSupport("You reported this one.")
     if meta.get("status") not in OPEN_STATUSES:
         raise CannotSupport("This report is closed.")
+    if meta.get("sample"):
+        raise CannotSupport("This is a sample report.")
 
     photo_key = source_key = None
     photo_public = False

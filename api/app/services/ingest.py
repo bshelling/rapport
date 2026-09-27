@@ -173,6 +173,7 @@ def _recent_unlinked_reports() -> list[dict]:
         i
         for i in items
         if not i.get("nola311_ticket")
+        and not i.get("sample")
         and i.get("status") == "submitted"
         and not i.get("suggested_ticket")
         and not i.get("ticket_suggestion_dismissed")

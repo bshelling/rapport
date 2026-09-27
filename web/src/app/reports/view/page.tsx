@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Nola311Panel } from "@/components/nola311-panel";
+import { SampleBadge } from "@/components/sample-badge";
 import { SignInPrompt } from "@/components/sign-in-prompt";
 import { StatusBadge } from "@/components/status-badge";
 import { SupportButton } from "@/components/support-button";
@@ -92,7 +93,15 @@ function ReportView() {
             {report.request_reason}
           </h1>
           <StatusBadge status={report.status} />
+          {report.sample && <SampleBadge />}
         </div>
+        {report.sample && (
+          <p className="text-sm text-muted" data-testid="sample-note">
+            This is sample data for the demo, not a real resident&apos;s report.
+            {report.nola311_ticket &&
+              " Its NOLA 311 request is real, so its status follows the City's."}
+          </p>
+        )}
         <p className="text-muted">
           {report.request_type} · Reported {formatDate(report.created_at)} · Ref{" "}
           {shortRef(report.id)}

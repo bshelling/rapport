@@ -16,7 +16,9 @@ export function SupportButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (report.is_owner || !OPEN.includes(report.status)) return null;
+  // Owners, closed reports and demo data can't be +1'd.
+  if (report.is_owner || report.sample || !OPEN.includes(report.status))
+    return null;
   if (report.supported_by_me) {
     return (
       <p

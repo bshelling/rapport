@@ -79,14 +79,16 @@ export function PublicMap() {
         el.style.background = TYPE_COLORS[r.request_type] ?? "#5b3f8c";
         el.setAttribute(
           "aria-label",
-          `${r.request_reason}, ${STATUS_LABEL[r.status]}`,
+          `${r.request_reason}, ${STATUS_LABEL[r.status]}${r.sample ? " (sample)" : ""}`,
         );
         el.dataset.testid = "map-pin";
         const popup = new maplibre.Popup({
           offset: 10,
           closeButton: false,
         }).setHTML(
-          `<strong>${escapeHtml(r.request_reason)}</strong><br/>` +
+          `<strong>${escapeHtml(r.request_reason)}</strong>` +
+            (r.sample ? " <em>(sample)</em>" : "") +
+            "<br/>" +
             `${escapeHtml(STATUS_LABEL[r.status])} · ${escapeHtml(formatDate(r.created_at))}` +
             (r.supporter_count
               ? `<br/>${r.supporter_count} neighbor(s) +1`
@@ -246,7 +248,10 @@ export function PublicMap() {
     };
   }, [map, showBasins]);
 
-  const open = reports?.filter((r) => r.status !== "resolved").length ?? 0;
+  const openReports = reports?.filter((r) => r.status !== "resolved") ?? [];
+  // Demo data is on the map (labeled) but never counted as residents' reports.
+  const samples = openReports.filter((r) => r.sample).length;
+  const open = openReports.length - samples;
 
   return (
     <section aria-labelledby="live-map-heading" className="flex flex-col gap-3">
@@ -260,7 +265,10 @@ export function PublicMap() {
               ? "The map couldn't load right now."
               : reports === null
                 ? "Loading reports…"
-                : `${open} open ${open === 1 ? "report" : "reports"} from residents`}
+                : `${open} open ${open === 1 ? "report" : "reports"} from residents` +
+                  (samples
+                    ? ` · ${samples} ${samples === 1 ? "sample" : "samples"}`
+                    : "")}
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm">

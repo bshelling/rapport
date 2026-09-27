@@ -272,6 +272,7 @@ export type ReportStatus =
   | "closed_duplicate";
 
 export type ReportSummary = {
+  sample?: boolean;
   id: string;
   request_type: string;
   request_reason: string;
@@ -295,6 +296,7 @@ export type ReportEvent = {
 };
 
 export type ReportDetail = {
+  sample?: boolean;
   id: string;
   is_owner: boolean;
   request_type: string;
@@ -385,6 +387,7 @@ export const reverseGeocode = (lat: number, lng: number) =>
   );
 
 export type MapReport = {
+  sample?: boolean;
   id: string;
   source: "rapport" | "nola311";
   request_type: string;
