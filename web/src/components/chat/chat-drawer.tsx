@@ -245,7 +245,10 @@ export function ChatDrawer() {
               <p>{GREETING.text}</p>
               <button
                 type="button"
-                onClick={() => auth.status === "signedOut" && auth.signIn()}
+                onClick={() => {
+                  setOpen(false);
+                  auth.signIn();
+                }}
                 className="self-start rounded-full bg-brand px-5 py-2 font-semibold text-background"
               >
                 Sign in to chat

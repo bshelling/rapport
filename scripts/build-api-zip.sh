@@ -22,8 +22,12 @@ uv pip install -q \
   -r "$BUILD/requirements.txt"
 cp -R app "$BUILD/pkg/app"
 find "$BUILD/pkg" -name "__pycache__" -type d -prune -exec rm -rf {} +
+# Fixed permissions, timestamps and order keep the zip identical across builds of the
+# same code, so the Lambdas only update when something changed.
+chmod -R u=rwX,go=rX "$BUILD/pkg"
+find "$BUILD/pkg" -exec touch -h -t 202601010000 {} +
 
 mkdir -p "$(dirname "$OUT")"
 rm -f "$OUT"
-(cd "$BUILD/pkg" && zip -qr -X "$OUT" .)
+(cd "$BUILD/pkg" && find . -type f | LC_ALL=C sort | zip -q -X -@ "$OUT")
 echo "built $OUT ($(du -h "$OUT" | cut -f1))"

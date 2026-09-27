@@ -5,8 +5,9 @@ import type { Marker } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 import { useMap } from "@/components/map/use-map";
 import { getMapReports, type MapReport } from "@/lib/api";
+import { cityPopupHtml, reportPopupHtml } from "@/lib/map-popup";
 import { hasMapTiles, TYPE_COLORS } from "@/lib/map-style";
-import { formatDate, STATUS_LABEL } from "@/lib/report-format";
+import { STATUS_LABEL } from "@/lib/report-format";
 
 const BASIN_MIN_ZOOM = 15;
 const fmtCount = (n: number) => new Intl.NumberFormat("en-US").format(n);
@@ -35,14 +36,6 @@ async function fetchBasins(
     geometry: { type: "Point" as const, coordinates: r.the_geom.coordinates },
     properties: { id: r.gisid, street: r.stname ?? "" },
   }));
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 /** Anonymous live map of reports (no reporter details, rounded locations). */
@@ -85,15 +78,7 @@ export function PublicMap() {
         const popup = new maplibre.Popup({
           offset: 10,
           closeButton: false,
-        }).setHTML(
-          `<strong>${escapeHtml(r.request_reason)}</strong>` +
-            (r.sample ? " <em>(sample)</em>" : "") +
-            "<br/>" +
-            `${escapeHtml(STATUS_LABEL[r.status])} · ${escapeHtml(formatDate(r.created_at))}` +
-            (r.supporter_count
-              ? `<br/>${r.supporter_count} neighbor(s) +1`
-              : ""),
-        );
+        }).setHTML(reportPopupHtml(r));
         markers.push(
           new maplibre.Marker({ element: el })
             .setLngLat([r.lng, r.lat])
@@ -158,10 +143,7 @@ export function PublicMap() {
         const popup = new maplibre.Popup({
           offset: 8,
           closeButton: false,
-        }).setHTML(
-          `<strong>${escapeHtml(r.request_reason)}</strong><br/>` +
-            `NOLA 311 #${escapeHtml(r.id)} · open since ${escapeHtml(formatDate(r.created_at))}`,
-        );
+        }).setHTML(cityPopupHtml(r));
         markers.push(
           new maplibre.Marker({ element: el })
             .setLngLat([r.lng, r.lat])

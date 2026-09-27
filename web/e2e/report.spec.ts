@@ -5,6 +5,7 @@ import {
   hasE2EUser,
   openReport,
   signInFromHeader,
+  signInWithForm,
   stepOne,
   stepTwo,
 } from "./helpers";
@@ -15,6 +16,25 @@ test("signed-out visitors are asked to sign in", async ({ page }) => {
   await page.goto("/");
   const dialog = await openReport(page);
   await expect(dialog.getByText("Sign in to report an issue")).toBeVisible();
+});
+
+test.describe("signing in from the report modal", () => {
+  test.skip(!hasE2EUser, "E2E_EMAIL / E2E_PASSWORD not set");
+
+  test("closes the modal, then reopens it after sign-in", async ({ page }) => {
+    await page.goto("/");
+    const dialog = await openReport(page);
+    await dialog.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL(/\/sign-in\/$/);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await signInWithForm(page);
+    // Back where they started: the report form, ready to fill in.
+    await expect(
+      page
+        .getByRole("dialog", { name: "Report an issue" })
+        .getByRole("form", { name: "Request type" }),
+    ).toBeVisible();
+  });
 });
 
 test.describe("report flow", () => {

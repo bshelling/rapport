@@ -42,3 +42,48 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* Map popups follow the app theme (MapLibre defaults to white). */
+.maplibregl-popup-content {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+.maplibregl-popup-content p + p {
+  color: var(--muted);
+}
+.maplibregl-popup-content .rp-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.maplibregl-popup-content .rp-tag {
+  margin-left: 0.25rem;
+  border: 1px dashed var(--muted);
+  border-radius: 9999px;
+  padding: 0 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--background);
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--background);
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--background);
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--background);
+}
