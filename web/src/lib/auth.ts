@@ -3,30 +3,19 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID ?? "";
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID ?? "";
-const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN ?? "";
-
-export const authConfigured = Boolean(userPoolId && userPoolClientId && domain);
+export const authConfigured = Boolean(userPoolId && userPoolClientId);
 
 let configured = false;
 
-/** Configure Amplify once, in the browser, using the current origin for redirects. */
+/** Configure Amplify once, in the browser. Sign-in happens on our own pages (SRP). */
 export function configureAuth() {
   if (configured || !authConfigured || typeof window === "undefined") return;
-  const origin = window.location.origin;
   Amplify.configure({
     Auth: {
       Cognito: {
         userPoolId,
         userPoolClientId,
-        loginWith: {
-          oauth: {
-            domain,
-            scopes: ["openid", "email", "profile"],
-            redirectSignIn: [`${origin}/auth/callback/`],
-            redirectSignOut: [`${origin}/`],
-            responseType: "code",
-          },
-        },
+        loginWith: { email: true },
       },
     },
   });

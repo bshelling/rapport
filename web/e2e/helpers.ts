@@ -4,14 +4,13 @@ export const e2eEmail = process.env.E2E_EMAIL;
 export const e2ePassword = process.env.E2E_PASSWORD;
 export const hasE2EUser = Boolean(e2eEmail && e2ePassword);
 
-/** Complete Cognito managed login after the app redirected there. */
-export async function completeCognitoLogin(page: Page) {
-  await page.waitForURL(/amazoncognito\.com/);
-  await page.getByLabel("Email address").fill(e2eEmail as string);
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill(e2ePassword as string);
-  await page.getByRole("button", { name: "Sign in" }).click();
+/** Complete Rapport's sign-in page after the app sent the visitor there. */
+export async function signInWithForm(page: Page) {
+  await page.waitForURL(/\/sign-in\/$/);
+  const form = page.getByRole("form", { name: "Sign in" });
+  await form.getByLabel("Email").fill(e2eEmail as string);
+  await form.getByLabel("Password").fill(e2ePassword as string);
+  await form.getByRole("button", { name: "Sign in" }).click();
 }
 
 export async function signInFromHeader(page: Page) {
@@ -19,7 +18,7 @@ export async function signInFromHeader(page: Page) {
     .getByRole("banner")
     .getByRole("button", { name: "Sign in" })
     .click();
-  await completeCognitoLogin(page);
+  await signInWithForm(page);
   await expect(
     page.getByRole("banner").getByRole("button", { name: "Sign out" }),
   ).toBeVisible();

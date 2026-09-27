@@ -72,8 +72,9 @@ resource "aws_cognito_user_pool" "main" {
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = "Your Rapport verification code"
-    email_message        = "Your Rapport verification code is {####}."
+    # Cognito sends this for both sign-up and password reset, so it stays neutral.
+    email_subject = "Your Rapport verification code"
+    email_message = "Your Rapport verification code is {####}\n\nEnter it on the Rapport page that asked for it. It expires in 24 hours. If you didn't request it, you can ignore this email."
   }
 
   schema {

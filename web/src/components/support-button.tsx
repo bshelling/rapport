@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useState } from "react";
 import { ApiError, type ReportDetail, supportReport } from "@/lib/api";
 
@@ -18,8 +19,12 @@ export function SupportButton({
   if (report.is_owner || !OPEN.includes(report.status)) return null;
   if (report.supported_by_me) {
     return (
-      <p className="text-sm font-medium text-brand" data-testid="supported">
-        ✓ You added your +1
+      <p
+        className="flex items-center gap-1.5 text-sm font-medium text-brand"
+        data-testid="supported"
+      >
+        <Check className="inline size-4 shrink-0" aria-hidden /> You added your
+        +1
       </p>
     );
   }

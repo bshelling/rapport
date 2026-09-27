@@ -2,13 +2,24 @@
 
 import { useReport } from "@/components/report/report-provider";
 
-export function ReportButton({ className = "" }: { className?: string }) {
+const VARIANTS = {
+  primary: "bg-brand text-background shadow-sm hover:opacity-90",
+  secondary: "border border-border hover:bg-brand/10",
+};
+
+export function ReportButton({
+  className = "",
+  variant = "primary",
+}: {
+  className?: string;
+  variant?: keyof typeof VARIANTS;
+}) {
   const { openReport } = useReport();
   return (
     <button
       type="button"
       onClick={() => openReport()}
-      className={`rounded-full bg-brand px-6 py-3 font-semibold text-background shadow-sm hover:opacity-90 ${className}`}
+      className={`rounded-full px-6 py-3 font-semibold ${VARIANTS[variant]} ${className}`}
     >
       Report an issue
     </button>

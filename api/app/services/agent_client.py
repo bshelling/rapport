@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import time
 import urllib.request
 from datetime import UTC, datetime
@@ -22,6 +23,13 @@ OFF_TOPIC_REPLY = (
     "clogged catch basins, flooding) and with the status of your reports. What's going on?"
 )
 ON_TOPIC_THRESHOLD = 0.2
+
+# The app shows no emojis; the prompt asks for none and this catches any that slip through.
+_EMOJI = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b00-\u2bff\ufe0f\u200d\u20e3]+[ \t]?")
+
+
+def strip_emojis(text: str) -> str:
+    return _EMOJI.sub("", text).strip()
 
 
 class LimitReached(Exception):
@@ -117,7 +125,7 @@ def chat(user_sub: str, session_id: str, message: str) -> dict:
         return {"reply": OFF_TOPIC_REPLY, "draft_id": None, "actions": [], "off_topic": True}
     out = _invoke({"user_sub": user_sub, "session_id": session_id, "message": message})
     return {
-        "reply": out.get("reply", ""),
+        "reply": strip_emojis(out.get("reply", "")),
         "draft_id": out.get("draft_id"),
         "actions": out.get("actions", []),
         "off_topic": False,

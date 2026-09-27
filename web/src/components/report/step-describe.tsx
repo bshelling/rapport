@@ -1,5 +1,6 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LocationPicker } from "@/components/map/location-picker";
 import { DuplicatesPanel } from "@/components/report/duplicates";
@@ -222,9 +223,10 @@ export function StepDescribe({
             type="button"
             onClick={useMyLocation}
             disabled={locating}
-            className="rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-brand/10 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-brand/10 disabled:opacity-50"
           >
-            {locating ? "Locating…" : "📍 Use my current location"}
+            <MapPin className="inline size-4 shrink-0" aria-hidden />
+            {locating ? "Locating…" : "Use my current location"}
           </button>
           {location && (
             <span className="text-sm text-muted" data-testid="location-set">

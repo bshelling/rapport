@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft, ExternalLink, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -77,8 +78,12 @@ function ReportView() {
   return (
     <>
       {report.is_owner && (
-        <Link href="/dashboard/" className="text-sm text-muted hover:underline">
-          ← My reports
+        <Link
+          href="/dashboard/"
+          className="inline-flex items-center gap-1 text-sm text-muted hover:underline"
+        >
+          <ArrowLeft className="inline size-4 shrink-0" aria-hidden /> My
+          reports
         </Link>
       )}
       <header className="flex flex-col gap-2">
@@ -151,8 +156,12 @@ function ReportView() {
               className="rounded-2xl border border-accent/30 bg-accent/5 p-4"
               data-testid="ai-assessment"
             >
-              <h2 id="ai-heading" className="mb-2 font-semibold">
-                <span aria-hidden>✨</span> Photo assessment
+              <h2
+                id="ai-heading"
+                className="mb-2 flex items-center gap-2 font-semibold"
+              >
+                <Sparkles className="size-4 text-accent" aria-hidden /> Photo
+                assessment
               </h2>
               <ul className="flex flex-wrap gap-2 text-sm">
                 {report.ai.severity_label && (
@@ -185,9 +194,10 @@ function ReportView() {
                 href={mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline"
+                className="inline-flex items-center gap-1 underline"
               >
-                Open in Maps ↗
+                Open in Maps{" "}
+                <ExternalLink className="inline size-4 shrink-0" aria-hidden />
               </a>
             </p>
             {report.basin && (

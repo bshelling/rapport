@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Draft, ReasonOption, Triage } from "@/lib/api";
 
@@ -44,7 +45,8 @@ export function InsightsPanel({
       className="mt-6 rounded-2xl border border-accent/30 bg-accent/5 p-4"
     >
       <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <span aria-hidden>✨</span> What we see in your photo
+        <Sparkles className="size-4 text-accent" aria-hidden /> What we see in
+        your photo
       </h3>
       <AnimatePresence mode="popLayout">
         {(!t || t.status === "pending") && <Analyzing key="analyzing" />}
@@ -167,7 +169,7 @@ function Chips({
       )}
       {isIssue && suggested && !mismatch && (
         <Chip tone="good" index={i++} testId="insight-match">
-          <span aria-hidden>✓</span>
+          <Check className="inline size-4 shrink-0" aria-hidden />
           {selected === suggested.request_reason || matches === null ? (
             <span>
               Looks like <strong>{suggested.request_reason}</strong> (

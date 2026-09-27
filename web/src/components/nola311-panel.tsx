@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApiError, type ReportDetail, setTicket } from "@/lib/api";
 import {
@@ -76,9 +77,15 @@ export function Nola311Panel({
             </span>
             .
           </p>
-          <p className="mt-1 text-xs text-muted" data-testid="ticket-verified">
+          <p
+            className="mt-1 flex items-center gap-1 text-xs text-muted"
+            data-testid="ticket-verified"
+          >
+            {report.nola311_verified && (
+              <Check className="size-3.5 shrink-0 text-brand" aria-hidden />
+            )}
             {report.nola311_verified
-              ? "✓ Found in the City's 311 data. Status updates come from the City."
+              ? "Found in the City's 311 data. Status updates come from the City."
               : "We'll look for it in the City's 311 data tonight (it's published daily)."}
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
@@ -86,9 +93,10 @@ export function Nola311Panel({
               href={NOLA_311_STATUS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-border px-4 py-1.5 font-medium hover:bg-brand/10"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 font-medium hover:bg-brand/10"
             >
-              Check status on NOLA 311 ↗
+              Check status on NOLA 311{" "}
+              <ExternalLink className="inline size-4 shrink-0" aria-hidden />
             </a>
             <button
               type="button"
@@ -112,9 +120,16 @@ export function Nola311Panel({
             <button
               type="button"
               onClick={copy}
-              className="mt-2 rounded-full border border-border px-4 py-1.5 font-medium hover:bg-brand/10"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 font-medium hover:bg-brand/10"
             >
-              {copied ? "Copied ✓" : "Copy summary"}
+              {copied ? (
+                <>
+                  Copied{" "}
+                  <Check className="inline size-4 shrink-0" aria-hidden />
+                </>
+              ) : (
+                "Copy summary"
+              )}
             </button>
           </li>
           <li>
@@ -126,9 +141,10 @@ export function Nola311Panel({
               href={NOLA_311_REQUEST_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-block rounded-full bg-brand px-4 py-1.5 font-semibold text-background"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand px-4 py-1.5 font-semibold text-background"
             >
-              Open NOLA 311 ↗
+              Open NOLA 311{" "}
+              <ExternalLink className="inline size-4 shrink-0" aria-hidden />
             </a>
           </li>
           <li>

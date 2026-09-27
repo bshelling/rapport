@@ -1,6 +1,7 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { MessageCircle, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
@@ -135,7 +136,7 @@ export function ChatDrawer() {
           type="button"
           className="fixed right-4 bottom-4 z-30 flex items-center gap-2 rounded-full bg-accent px-5 py-3 font-semibold text-background shadow-lg hover:opacity-90 sm:right-6 sm:bottom-6"
         >
-          <span aria-hidden="true">💬</span> Ask Rapport
+          <MessageCircle className="size-5" aria-hidden /> Ask Rapport
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -157,10 +158,10 @@ export function ChatDrawer() {
                 </button>
               )}
               <Dialog.Close
-                className="rounded-full px-3 py-1 text-lg leading-none text-muted hover:bg-brand/10"
+                className="rounded-full p-1.5 text-muted hover:bg-brand/10"
                 aria-label="Close chat"
               >
-                ×
+                <X className="size-5" aria-hidden />
               </Dialog.Close>
             </div>
           </div>

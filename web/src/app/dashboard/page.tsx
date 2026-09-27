@@ -1,5 +1,6 @@
 "use client";
 
+import { Construction, Droplets } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
@@ -138,10 +139,14 @@ export default function DashboardPage() {
                         />
                       ) : (
                         <div
-                          className="flex h-full items-center justify-center text-2xl"
+                          className="flex h-full items-center justify-center"
                           aria-hidden
                         >
-                          {r.request_type === "Drainage" ? "💧" : "🛣️"}
+                          {r.request_type === "Drainage" ? (
+                            <Droplets className="size-6 text-muted" />
+                          ) : (
+                            <Construction className="size-6 text-muted" />
+                          )}
                         </div>
                       )}
                     </div>
