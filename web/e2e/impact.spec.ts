@@ -32,6 +32,7 @@ test("catch basins appear on the map when zoomed in", async ({
 }, testInfo) => {
   await page.goto("/");
   await expect(page.getByTestId("public-map").locator("canvas")).toBeVisible();
+  // Toggle right away, before the map finishes loading (like a quick tap would).
   await page.getByTestId("toggle-basins").check();
   await expect(page.getByTestId("basin-note")).toHaveText(
     /\([\d,]+ catch basins in view\)/,

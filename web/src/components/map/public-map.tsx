@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Marker } from "maplibre-gl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMap } from "@/components/map/use-map";
 import { getMapReports, type MapReport } from "@/lib/api";
 import { hasMapTiles, TYPE_COLORS } from "@/lib/map-style";
@@ -55,6 +55,8 @@ export function PublicMap() {
   const [cityCapped, setCityCapped] = useState(false);
   const [showBasins, setShowBasins] = useState(false);
   const [basinNote, setBasinNote] = useState<string | null>(null);
+  // Turning basins on zooms in, even if the map is still loading at that moment.
+  const zoomForBasins = useRef(false);
 
   useEffect(() => {
     getMapReports()
@@ -203,6 +205,10 @@ export function PublicMap() {
       setBasinNote(null);
       return;
     }
+    if (zoomForBasins.current && map.getZoom() < BASIN_MIN_ZOOM) {
+      map.easeTo({ zoom: BASIN_MIN_ZOOM }); // the moveend below then loads them
+    }
+    zoomForBasins.current = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let current = 0;
     const load = () => {
@@ -262,10 +268,8 @@ export function PublicMap() {
             type="checkbox"
             checked={showBasins}
             onChange={(e) => {
+              zoomForBasins.current = e.target.checked;
               setShowBasins(e.target.checked);
-              if (e.target.checked && map && map.getZoom() < BASIN_MIN_ZOOM) {
-                map.easeTo({ zoom: BASIN_MIN_ZOOM });
-              }
             }}
             data-testid="toggle-basins"
           />
