@@ -153,11 +153,6 @@ data "aws_iam_policy_document" "api" {
     actions   = ["s3:ListBucket"]
     resources = [var.photo_bucket_arn]
   }
-  statement {
-    sid       = "ChatAgent"
-    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
-    resources = [var.agent_runtime_arn, "${var.agent_runtime_arn}/*"]
-  }
   # Jev screens the opening chat message for topic before the agent runs.
   statement {
     sid       = "TypeSafeKey"
@@ -211,8 +206,6 @@ resource "aws_lambda_function" "api" {
       RAPPORT_AI_MODE            = var.ai_mode
       RAPPORT_GEO_MODE           = "live"
       RAPPORT_NOLA311_MODE       = "live"
-      RAPPORT_AGENT_MODE         = "runtime"
-      RAPPORT_AGENT_RUNTIME_ARN  = var.agent_runtime_arn
       RAPPORT_TYPESAFE_KEY_PARAM = var.typesafe_key_param
     }
   }
@@ -273,6 +266,12 @@ data "aws_iam_policy_document" "worker" {
       values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
     }
   }
+  # Chat turns: the worker calls the agent so the API can answer within API Gateway's 30 s.
+  statement {
+    sid       = "ChatAgent"
+    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [var.agent_runtime_arn, "${var.agent_runtime_arn}/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "worker" {
@@ -308,6 +307,8 @@ resource "aws_lambda_function" "worker" {
       RAPPORT_AI_MODE            = var.ai_mode
       RAPPORT_CLAUDE_MODEL       = var.claude_model
       RAPPORT_TYPESAFE_KEY_PARAM = var.typesafe_key_param
+      RAPPORT_AGENT_MODE         = "runtime"
+      RAPPORT_AGENT_RUNTIME_ARN  = var.agent_runtime_arn
     }
   }
 

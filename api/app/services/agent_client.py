@@ -11,6 +11,7 @@ from functools import lru_cache
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+from ulid import ULID
 
 from app.config import get_settings
 from app.db import get_table
@@ -22,6 +23,7 @@ OFF_TOPIC_REPLY = (
     "I can help with street, sidewalk and drainage problems in New Orleans (potholes, "
     "clogged catch basins, flooding) and with the status of your reports. What's going on?"
 )
+ERROR_REPLY = "Sorry, I couldn't answer just now. Please try again, or use the report form."
 ON_TOPIC_THRESHOLD = 0.2
 
 # The app shows no emojis; the prompt asks for none and this catches any that slip through.
@@ -61,11 +63,17 @@ def _count(key: str, limit: int, ttl_seconds: int) -> int:
 
 @lru_cache
 def _agentcore():
-    # The API Lambda has 29 s; leave room to answer even if the agent is slow.
+    # Runs in the worker (90 s), so a slow turn or a cold runtime has room to finish.
+    # One attempt only: a retry would run the turn twice on the same session and the
+    # resident would get the second, draft-less answer (and a second bill).
     return boto3.client(
         "bedrock-agentcore",
         region_name=get_settings().aws_region,
-        config=Config(read_timeout=26, connect_timeout=3, retries={"max_attempts": 1}),
+        config=Config(
+            read_timeout=80,
+            connect_timeout=5,
+            retries={"mode": "standard", "total_max_attempts": 1},
+        ),
     )
 
 
@@ -84,7 +92,7 @@ def _invoke(payload: dict) -> dict:
             data=body,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=60) as res:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=85) as res:  # noqa: S310
             return json.loads(res.read())
     # AgentCore needs session ids of 33+ characters; one runtime session per chat.
     session = f"{payload['user_sub']}:{payload['session_id']}".ljust(33, "0")
@@ -106,7 +114,27 @@ def _off_topic(message: str) -> bool:
         return False
 
 
-def chat(user_sub: str, session_id: str, message: str) -> dict:
+class TurnNotFound(Exception):
+    pass
+
+
+def _turn_key(turn_id: str) -> dict:
+    return {"PK": f"TURN#{turn_id}", "SK": "META"}
+
+
+def _turn_out(turn_id: str, item: dict) -> dict:
+    return {
+        "turn_id": turn_id,
+        "status": item["status"],
+        "reply": item.get("reply"),
+        "draft_id": item.get("draft_id"),
+        "actions": item.get("actions", []),
+        "off_topic": bool(item.get("off_topic")),
+    }
+
+
+def start_turn(user_sub: str, session_id: str, message: str) -> dict:
+    """Check limits and topic, then queue the turn for the worker; returns at once."""
     settings = get_settings()
     day = datetime.now(UTC).strftime("%Y-%m-%d")
     try:
@@ -119,14 +147,64 @@ def chat(user_sub: str, session_id: str, message: str) -> dict:
             if per_session
             else "You've reached today's chat limit. The report form works any time."
         ) from None
+    turn_id = str(ULID())
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    item = {
+        **_turn_key(turn_id),
+        "user_sub": user_sub,
+        "session_id": session_id,
+        "message": message,
+        "status": "pending",
+        "created_at": now,
+        "expires_at": int(time.time()) + 86400,
+    }
     # Only the opening message needs a topic check; follow-ups ("yes", "Magazine and
     # Napoleon") only make sense in context, and the agent steers conversations itself.
     if turn == 1 and _off_topic(message):
-        return {"reply": OFF_TOPIC_REPLY, "draft_id": None, "actions": [], "off_topic": True}
-    out = _invoke({"user_sub": user_sub, "session_id": session_id, "message": message})
-    return {
-        "reply": strip_emojis(out.get("reply", "")),
-        "draft_id": out.get("draft_id"),
-        "actions": out.get("actions", []),
-        "off_topic": False,
-    }
+        item.update(status="done", reply=OFF_TOPIC_REPLY, actions=[], off_topic=True)
+    get_table().put_item(Item=item)
+    return _turn_out(turn_id, item)
+
+
+def run_turn(turn_id: str) -> str:
+    """Worker task: run a queued turn through the agent and store the answer."""
+    table = get_table()
+    item = table.get_item(Key=_turn_key(turn_id)).get("Item")
+    if not item or item["status"] != "pending":
+        return "skipped"
+    try:
+        out = _invoke(
+            {
+                "user_sub": item["user_sub"],
+                "session_id": item["session_id"],
+                "message": item["message"],
+            }
+        )
+        result = {
+            "status": "done",
+            "reply": strip_emojis(out.get("reply", "")),
+            "draft_id": out.get("draft_id"),
+            "actions": out.get("actions", []),
+        }
+    except Exception:  # noqa: BLE001 - the resident gets a retry prompt instead of silence
+        log.exception("agent turn %s failed", turn_id)
+        result = {"status": "error", "reply": ERROR_REPLY, "actions": []}
+    table.update_item(
+        Key=_turn_key(turn_id),
+        UpdateExpression="SET #s = :s, reply = :r, draft_id = :d, actions = :a",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={
+            ":s": result["status"],
+            ":r": result["reply"],
+            ":d": result.get("draft_id"),
+            ":a": result["actions"],
+        },
+    )
+    return result["status"]
+
+
+def get_turn(turn_id: str, user_sub: str) -> dict:
+    item = get_table().get_item(Key=_turn_key(turn_id)).get("Item")
+    if not item or item.get("user_sub") != user_sub:
+        raise TurnNotFound(turn_id)
+    return _turn_out(turn_id, item)
