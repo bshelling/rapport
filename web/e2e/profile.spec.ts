@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { completeCognitoLogin, hasE2EUser } from "./helpers";
+import { hasE2EUser, signInWithForm } from "./helpers";
 
-// Signs in through Cognito managed login with the e2e test user
+// Signs in on Rapport's sign-in page with the e2e test user
 // (password in SSM /rapport/prod/e2e/password; see infra/modules/auth).
 
 test.describe("profile", () => {
@@ -14,7 +14,7 @@ test.describe("profile", () => {
       .getByRole("button", { name: "Sign in" })
       .click();
 
-    await completeCognitoLogin(page);
+    await signInWithForm(page);
     await page.waitForURL(/\/profile\/$/);
     const form = page.getByRole("form", { name: "Profile" });
     await expect(form).toBeVisible();
@@ -56,7 +56,7 @@ test.describe("profile", () => {
       .getByRole("main")
       .getByRole("button", { name: "Sign in" })
       .click();
-    await completeCognitoLogin(page);
+    await signInWithForm(page);
     await page.waitForURL(/\/profile\/$/);
 
     const form = page.getByRole("form", { name: "Profile" });

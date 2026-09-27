@@ -1,5 +1,6 @@
 "use client";
 
+import { Camera, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isAnalyzing } from "@/components/report/insights";
@@ -168,9 +169,7 @@ export function StepType({
       >
         {photos.length === 0 ? (
           <label className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
-            <span aria-hidden className="text-xl">
-              📷
-            </span>
+            <Camera className="size-5 shrink-0 text-muted" aria-hidden />
             <span className="flex-1">
               <strong>Not sure?</strong> Add a photo and we&apos;ll suggest the
               right category.
@@ -195,7 +194,10 @@ export function StepType({
             {(isAnalyzing(draft) || watching) &&
               triage?.status !== "done" &&
               triage?.status !== "error" && (
-                <p className="text-muted">✨ Looking at your photo…</p>
+                <p className="flex items-center gap-2 text-muted">
+                  <Sparkles className="inline size-4 shrink-0" aria-hidden />{" "}
+                  Looking at your photo…
+                </p>
               )}
             {triage?.status === "error" && (
               <p className="text-muted">
@@ -210,8 +212,12 @@ export function StepType({
             )}
             {suggestions.length > 0 && (
               <>
-                <p className="font-medium">
-                  ✨ From your photo, this looks like:
+                <p className="flex items-center gap-2 font-medium">
+                  <Sparkles
+                    className="size-4 shrink-0 text-accent"
+                    aria-hidden
+                  />{" "}
+                  From your photo, this looks like:
                 </p>
                 <div
                   className="mt-2 flex flex-wrap gap-2"

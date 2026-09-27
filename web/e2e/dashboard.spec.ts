@@ -51,7 +51,7 @@ test.describe("dashboard and report details", () => {
       "Request reason: Sidewalk Damaged or Missing",
     );
     await expect(
-      page.getByRole("link", { name: "Open NOLA 311 ↗" }),
+      page.getByRole("link", { name: "Open NOLA 311" }),
     ).toHaveAttribute("href", "https://nola311.org/service-request");
     await shot("report-view");
 

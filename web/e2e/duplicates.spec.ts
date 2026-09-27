@@ -53,9 +53,7 @@ test.describe("duplicates and +1", () => {
 
     await expect(page.getByTestId("report-supported")).toBeVisible();
     await page.getByRole("link", { name: "View the report" }).click();
-    await expect(page.getByTestId("supported")).toHaveText(
-      "✓ You added your +1",
-    );
+    await expect(page.getByTestId("supported")).toHaveText("You added your +1");
     await expect(page.getByTestId("supporter-count")).toHaveText(
       "1 neighbor +1",
     );
@@ -70,7 +68,7 @@ test.describe("duplicates and +1", () => {
     if (!(await already.isVisible())) {
       await page.getByRole("button", { name: "I see this too (+1)" }).click();
     }
-    await expect(already).toHaveText("✓ You added your +1");
+    await expect(already).toHaveText("You added your +1");
     await expect(page.getByTestId("supporter-count")).toHaveText(
       /[1-9]\d* neighbors? \+1/,
     );

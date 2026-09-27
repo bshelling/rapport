@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Impact } from "@/components/impact";
 import { PublicMap } from "@/components/map/public-map";
 import { ReportButton } from "@/components/report-button";
@@ -37,8 +38,14 @@ export default function Home() {
           Rapport helps you file street and drainage requests the way NOLA 311
           expects them, then keeps track of what happens next.
         </p>
-        <div>
+        <div className="flex flex-wrap items-center gap-3">
           <ReportButton />
+          <Link
+            href="/getting-started/"
+            className="rounded-full px-4 py-3 font-semibold text-brand hover:bg-brand/10"
+          >
+            How it works
+          </Link>
         </div>
       </section>
 

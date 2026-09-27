@@ -73,3 +73,18 @@ def test_session_and_daily_limits(client, monkeypatch):
 
 def test_rejects_bad_session_ids(client):
     assert _chat(client, "pothole", session="../x").status_code == 422
+
+
+def test_emojis_are_removed_from_replies(client, monkeypatch):
+    monkeypatch.setattr(
+        agent_client,
+        "_invoke",
+        lambda p: {"reply": "Your draft is ready! 📸 Add a photo 👍🏽 if you can ✅"},
+    )
+    body = _chat(client, "pothole on Magazine", session="sess-e001").json()
+    assert body["reply"] == "Your draft is ready! Add a photo if you can"
+
+
+def test_strip_emojis_keeps_ordinary_text():
+    text = "Drainage – Catch Basin Clogged at 1300 Perdido St (no. 2026-1322736)…"
+    assert agent_client.strip_emojis(text) == text

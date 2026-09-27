@@ -1,8 +1,8 @@
 "use client";
 
-import "aws-amplify/auth/enable-oauth-listener";
-import { getCurrentUser, signInWithRedirect, signOut } from "aws-amplify/auth";
+import { getCurrentUser, signOut } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -27,6 +27,7 @@ type AuthContextValue = AuthState & {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [state, setState] = useState<AuthState>(
     authConfigured ? { status: "loading" } : { status: "unavailable" },
   );
@@ -49,11 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     configureAuth();
     refresh();
     return Hub.listen("auth", ({ payload }) => {
-      if (
-        payload.event === "signedIn" ||
-        payload.event === "signInWithRedirect"
-      )
-        refresh();
+      if (payload.event === "signedIn") refresh();
       if (payload.event === "signedOut") setState({ status: "signedOut" });
     });
   }, [refresh]);
@@ -61,17 +58,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
+      // Sends the visitor to our sign-in page; they come back here afterwards.
       signIn: async (returnTo) => {
-        configureAuth();
         rememberReturnTo(returnTo ?? window.location.pathname);
-        await signInWithRedirect();
+        router.push("/sign-in/");
       },
       signOut: async () => {
         configureAuth();
         await signOut();
+        router.push("/");
       },
     }),
-    [state],
+    [state, router],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
