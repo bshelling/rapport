@@ -455,3 +455,19 @@ export type Stats = {
 };
 
 export const getStats = () => request<Stats>("/api/stats");
+
+export type ChatAction = { type: "review_draft"; draft_id: string };
+
+export type ChatReply = {
+  reply: string;
+  draft_id: string | null;
+  actions: ChatAction[];
+  off_topic: boolean;
+};
+
+export const sendChat = (sessionId: string, message: string) =>
+  request<ChatReply>("/api/agent/chat", {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionId, message }),
+    auth: true,
+  });

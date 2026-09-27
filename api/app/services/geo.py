@@ -24,8 +24,12 @@ def _short_address(label: str | None) -> str | None:
     return label.split(",")[0].strip() if label else None
 
 
+_BIAS = [-90.0715, 29.9511]  # downtown New Orleans (lng, lat)
+
+
 class Geo(Protocol):
     def suggest(self, query: str) -> list[PlaceSuggestion]: ...
+    def geocode(self, query: str) -> Place | None: ...
     def place(self, place_id: str) -> Place | None: ...
     def reverse(self, lat: float, lng: float) -> str | None: ...
 
@@ -34,16 +38,42 @@ class LocationServiceGeo:
     def __init__(self, region: str):
         self.client = boto3.client("geo-places", region_name=region)
 
+    def _geocode_items(self, query: str) -> list[dict]:
+        # Geocode understands intersections ("Magazine at Napoleon"), "corner of ..." and
+        # landmarks, which autocomplete often misses. It has no bounding-box filter, so bias
+        # toward the city and keep only results inside it.
+        res = self.client.geocode(
+            QueryText=query,
+            MaxResults=5,
+            BiasPosition=_BIAS,
+            Filter={"IncludeCountries": ["USA"]},
+            Language="en",
+        )
+        return [
+            i
+            for i in res.get("ResultItems", [])
+            if "Position" in i and in_new_orleans(i["Position"][1], i["Position"][0])
+        ]
+
     def suggest(self, query: str) -> list[PlaceSuggestion]:
         res = self.client.autocomplete(
             QueryText=query, MaxResults=5, Filter={"BoundingBox": _BBOX}, Language="en"
         )
+        items = res.get("ResultItems", []) or self._geocode_items(query)
         out = []
-        for item in res.get("ResultItems", []):
+        for item in items:
             address = item.get("Address", {})
             title = address.get("Label") or item.get("Title", "")
             out.append(PlaceSuggestion(place_id=item["PlaceId"], title=title))
         return out
+
+    def geocode(self, query: str) -> Place | None:
+        items = self._geocode_items(query)
+        if not items:
+            return None
+        lng, lat = items[0]["Position"]
+        label = items[0].get("Address", {}).get("Label") or items[0].get("Title")
+        return Place(lat=lat, lng=lng, address=_short_address(label))
 
     def place(self, place_id: str) -> Place | None:
         res = self.client.get_place(PlaceId=place_id, Language="en")
@@ -78,6 +108,10 @@ class FakeGeo:
 
     def place(self, place_id: str) -> Place | None:
         return self.PLACES.get(place_id)
+
+    def geocode(self, query: str) -> Place | None:
+        found = self.suggest(query)
+        return self.PLACES[found[0].place_id] if found else None
 
     def reverse(self, lat: float, lng: float) -> str | None:
         return f"Near {lat:.4f}, {lng:.4f}"

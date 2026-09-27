@@ -95,6 +95,11 @@ def _same_issue_state(new: dict, existing: dict) -> str:
     return json.dumps({"new_report": new, "existing_report": existing})
 
 
+ON_TOPIC = Noul(
+    instructions="The message is about a street, sidewalk or drainage problem, reporting one "
+    "to the City, or the status of the resident's own reports.",
+)
+
 SAME_ISSUE = Noul(
     instructions="The new report and the existing report describe the same physical problem "
     "at the same spot (not just a similar problem nearby).",
@@ -108,6 +113,8 @@ class Jev(Protocol):
 
     def same_issue(self, new: dict, existing: dict) -> float: ...
 
+    def on_topic(self, message: str) -> float: ...
+
 
 class TypeSafeJev:
     def __init__(self, api_key: str, model: str):
@@ -117,6 +124,9 @@ class TypeSafeJev:
             timeout=15.0,
             retry=RetryPolicy(max_retries=2, backoff_max=1.0, timeout=15.0),
         )
+
+    def on_topic(self, message):
+        return self.client.system_one(message, {"on_topic": ON_TOPIC}).nouls["on_topic"].noul
 
     def same_issue(self, new, existing):
         res = self.client.system_one(_same_issue_state(new, existing), {"same_issue": SAME_ISSUE})
@@ -150,6 +160,10 @@ class TypeSafeJev:
 
 
 class FakeJev:
+    def on_topic(self, message):
+        words = ("pothole", "drain", "street", "flood", "sidewalk", "report", "basin", "hole")
+        return 0.9 if any(w in message.lower() for w in words) else 0.05
+
     def same_issue(self, new, existing):
         # Same reason within 30 m reads as the same problem.
         close = existing.get("distance_m", 999) <= 30

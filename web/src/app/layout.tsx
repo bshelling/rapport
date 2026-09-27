@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Public_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/auth-provider";
+import { ChatDrawer } from "@/components/chat/chat-drawer";
 import { ReportProvider } from "@/components/report/report-provider";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <SiteHeader />
             </div>
             {children}
+            <ChatDrawer />
           </ReportProvider>
         </AuthProvider>
       </body>

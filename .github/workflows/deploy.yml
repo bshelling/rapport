@@ -34,8 +34,8 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - name: Build Lambda package
-        run: scripts/build-api-zip.sh
+      - name: Build Lambda and agent packages
+        run: scripts/build-api-zip.sh && scripts/build-agent-zip.sh
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
