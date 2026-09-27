@@ -103,3 +103,24 @@ test("City 311 requests can be shown on the map", async ({
     path: `screenshots/map-city-${testInfo.project.name}.png`,
   });
 });
+
+test("pin popups are readable in dark mode", async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  const pin = page.getByRole("button", { name: /\(sample\)$/ }).first();
+  await expect(pin).toBeVisible({ timeout: 15_000 });
+  await pin.click({ force: true }); // pins can overlap at city zoom
+  const popup = page.locator(".maplibregl-popup-content");
+  await expect(popup).toContainText(/reported \w{3} \d{1,2}, \d{4}/);
+  await expect(popup.getByText("Sample")).toBeVisible();
+  // Theme colors, not MapLibre's white box behind light text.
+  const [fg, bg] = await popup.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return [s.color, s.backgroundColor];
+  });
+  expect(bg).toBe("rgb(18, 17, 22)");
+  expect(fg).toBe("rgb(241, 239, 233)");
+  await page.screenshot({
+    path: `screenshots/map-popup-dark-${testInfo.project.name}.png`,
+  });
+});

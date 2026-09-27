@@ -102,7 +102,9 @@ resource "aws_s3_object" "code" {
   bucket = aws_s3_bucket.code.id
   key    = "agent/agent.zip"
   source = var.zip_path
-  etag   = filemd5(var.zip_path)
+  # Not `etag`: the zip is big enough for a multipart upload, whose S3 ETag is never
+  # the file's MD5, so every plan would see a change. source_hash lives in state.
+  source_hash = filemd5(var.zip_path)
 }
 
 # --- Memory: short-term conversation history per chat session ----------------------

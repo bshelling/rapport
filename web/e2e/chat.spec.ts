@@ -9,9 +9,11 @@ async function openChat(page: import("@playwright/test").Page) {
 test("signed-out visitors are asked to sign in to chat", async ({ page }) => {
   await page.goto("/");
   const chat = await openChat(page);
-  await expect(
-    chat.getByRole("button", { name: "Sign in to chat" }),
-  ).toBeVisible();
+  await chat.getByRole("button", { name: "Sign in to chat" }).click();
+  // The drawer closes and the sign-in page takes over.
+  await page.waitForURL(/\/sign-in\/$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("form", { name: "Sign in" })).toBeVisible();
 });
 
 test.describe("Ask Rapport", () => {
