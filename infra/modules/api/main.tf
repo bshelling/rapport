@@ -141,6 +141,7 @@ data "aws_iam_policy_document" "api" {
     sid = "PlaceSearch"
     actions = [
       "geo-places:Autocomplete",
+      "geo-places:Geocode",
       "geo-places:GetPlace",
       "geo-places:ReverseGeocode",
     ]
