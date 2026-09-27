@@ -7,9 +7,11 @@ test("home page renders and reaches the API", async ({ page }, testInfo) => {
     "Report it in a minute",
   );
   await expect(
-    page.getByRole("heading", { name: "Roads and Streets" }),
+    page.getByRole("heading", { name: "Roads and Streets", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Drainage" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Drainage", exact: true }),
+  ).toBeVisible();
 
   const status = page.getByTestId("api-status");
   await expect(status).toHaveAttribute("data-state", "ok");
