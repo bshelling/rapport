@@ -461,16 +461,38 @@ export const getStats = () => request<Stats>("/api/stats");
 
 export type ChatAction = { type: "review_draft"; draft_id: string };
 
-export type ChatReply = {
-  reply: string;
+export type ChatTurn = {
+  turn_id: string;
+  status: "pending" | "done" | "error";
+  reply: string | null;
   draft_id: string | null;
   actions: ChatAction[];
   off_topic: boolean;
 };
 
-export const sendChat = (sessionId: string, message: string) =>
-  request<ChatReply>("/api/agent/chat", {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Send a chat message and wait for the answer. The API queues the turn (agent turns
+ * take 10-25 s, too long to hold a request open) and we poll until it's answered.
+ */
+export async function askRapport(
+  sessionId: string,
+  message: string,
+  { pollMs = 1500, timeoutMs = 120_000 } = {},
+): Promise<ChatTurn> {
+  let turn = await request<ChatTurn>("/api/agent/chat", {
     method: "POST",
     body: JSON.stringify({ session_id: sessionId, message }),
     auth: true,
   });
+  const deadline = Date.now() + timeoutMs;
+  while (turn.status === "pending") {
+    if (Date.now() > deadline) throw new Error("chat turn timed out");
+    await sleep(pollMs);
+    turn = await request<ChatTurn>(`/api/agent/turns/${turn.turn_id}`, {
+      auth: true,
+    });
+  }
+  return turn;
+}

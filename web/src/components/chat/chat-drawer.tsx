@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useReport } from "@/components/report/report-provider";
-import { ApiError, type ChatAction, sendChat } from "@/lib/api";
+import { ApiError, askRapport, type ChatAction } from "@/lib/api";
 
 type Message = {
   id: string;
@@ -86,14 +86,15 @@ export function ChatDrawer() {
     setSending(true);
     setMessages((m) => [...m, { id: newId(), role: "user", text: message }]);
     try {
-      const res = await sendChat(sessionId, message);
+      const res = await askRapport(sessionId, message);
       setMessages((m) => [
         ...m,
         {
           id: newId(),
           role: "assistant",
-          text: res.reply,
+          text: res.reply ?? "",
           actions: res.actions,
+          error: res.status === "error",
         },
       ]);
     } catch (err) {
