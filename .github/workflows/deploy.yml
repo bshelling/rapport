@@ -89,6 +89,13 @@ jobs:
             cat ingest.json
           fi
 
+      - name: Sample data
+        # Creates any missing sample reports for the demo account; existing ones are kept.
+        working-directory: infra/envs/prod
+        run: |
+          uv run -q --with boto3 ../../../scripts/seed-demo.py prod \
+            --owner "$(terraform output -raw demo_user_sub)"
+
       - name: Build web
         working-directory: web
         env:

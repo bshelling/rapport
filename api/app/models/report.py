@@ -41,6 +41,8 @@ class ReportSummary(BaseModel):
     photo_count: int
     thumbnail_url: str | None
     nola311_ticket: str | None
+    # Demo data from scripts/seed-demo.py; the UI labels it as a sample.
+    sample: bool = False
     created_at: str
     updated_at: str
 
@@ -97,6 +99,8 @@ class ReportDetail(BaseModel):
     ai: ReportAI | None = None
     supported_by_me: bool = False
     supporter_count: int
+    # Demo data from scripts/seed-demo.py; the UI labels it as a sample.
+    sample: bool = False
     nola311_ticket: str | None
     nola311_verified: bool = False
     suggested_ticket: SuggestedTicket | None = None

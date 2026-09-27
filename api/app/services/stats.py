@@ -167,7 +167,8 @@ def rapport_numbers() -> dict:
         if "LastEvaluatedKey" not in res:
             break
         kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
-    real = [i for i in items if not str(i.get("id", "")).startswith("e2e-")]
+    # Test and demo data don't count toward Rapport's numbers.
+    real = [i for i in items if not str(i.get("id", "")).startswith("e2e-") and not i.get("sample")]
     return {
         "reports": len(real),
         "supporters": sum(int(i.get("supporter_count", 0)) for i in real),

@@ -44,6 +44,7 @@ def _pins(partition: str, bbox: BBox | None, limit: int) -> tuple[list[MapReport
                     lat=round(lat, COORD_DECIMALS),
                     lng=round(lng, COORD_DECIMALS),
                     supporter_count=int(item.get("supporter_count", 0)),
+                    sample=bool(item.get("sample")),
                     created_at=item["created_at"],
                 )
             )

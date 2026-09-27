@@ -151,6 +151,7 @@ def test_public_map_is_anonymous_and_rounded(client):
         "lat",
         "lng",
         "supporter_count",
+        "sample",
         "created_at",
     }
 

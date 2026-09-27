@@ -48,6 +48,9 @@ def nearby(
         for item in res["Items"]:
             if item.get("id") in (exclude_ids or set()):
                 continue
+            # Residents are never asked to +1 demo data.
+            if item.get("sample"):
+                continue
             if item.get("status", item.get("request_status")) not in (*OPEN_STATUSES, "Pending"):
                 continue
             loc = item.get("location") or {"lat": item.get("lat"), "lng": item.get("lng")}

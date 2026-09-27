@@ -16,6 +16,7 @@ class MapReport(BaseModel):
     lat: float
     lng: float
     supporter_count: int
+    sample: bool = False
     created_at: str
 
 

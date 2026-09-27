@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { ReportButton } from "@/components/report-button";
+import { SampleBadge } from "@/components/sample-badge";
 import { SignInPrompt } from "@/components/sign-in-prompt";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -154,6 +155,7 @@ export default function DashboardPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{r.request_reason}</p>
                         <StatusBadge status={r.status} />
+                        {r.sample && <SampleBadge />}
                       </div>
                       <p className="mt-0.5 truncate text-sm text-muted">
                         {r.address ??

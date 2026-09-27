@@ -161,6 +161,41 @@ resource "aws_ssm_parameter" "e2e_password" {
   value = random_password.e2e[0].result
 }
 
+# --- Demo account ------------------------------------------------------------
+# A ready-made resident account with sample reports (scripts/seed-demo.py) so
+# reviewers can see every status without filing anything.
+
+resource "random_password" "demo" {
+  length      = 16
+  min_upper   = 2
+  min_lower   = 2
+  min_numeric = 2
+  special     = false
+}
+
+resource "aws_cognito_user" "demo" {
+  user_pool_id = aws_cognito_user_pool.main.id
+  username     = "demo@example.com"
+  password     = random_password.demo.result
+
+  # Suppress the welcome email; the address is not deliverable.
+  message_action = "SUPPRESS"
+  attributes = {
+    email          = "demo@example.com"
+    email_verified = "true"
+  }
+}
+
+resource "aws_ssm_parameter" "demo_password" {
+  name  = "/rapport/${var.env}/demo/password"
+  type  = "SecureString"
+  value = random_password.demo.result
+}
+
+output "demo_user_sub" {
+  value = aws_cognito_user.demo.sub
+}
+
 output "user_pool_id" {
   value = aws_cognito_user_pool.main.id
 }
