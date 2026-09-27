@@ -1,4 +1,4 @@
-.PHONY: env local-up local-down local-infra seed api agent web test e2e lint build-api
+.PHONY: env local-up local-down local-infra seed api agent web test e2e lint build-api build-agent
 
 LOCAL_AWS = AWS_ENDPOINT_URL=http://localhost:4566 AWS_DEFAULT_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
 
@@ -47,6 +47,7 @@ web:
 
 test:
 	cd api && uv run pytest -q
+	cd agent && uv run pytest -q
 	cd web && bun test
 
 ## Playwright against a running site (BASE_URL, default http://localhost:3000).
@@ -55,8 +56,12 @@ e2e:
 
 lint:
 	cd api && uv run ruff check . ../scripts && uv run ruff format --check . ../scripts
+	cd agent && uv run ruff check . && uv run ruff format --check .
 	cd web && bunx biome check . && bun run typecheck
 	terraform fmt -check -recursive infra
 
 build-api:
 	scripts/build-api-zip.sh
+
+build-agent:
+	scripts/build-agent-zip.sh
