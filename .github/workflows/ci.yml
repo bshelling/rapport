@@ -49,6 +49,23 @@ jobs:
         working-directory: .
         run: scripts/build-api-zip.sh
 
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --frozen
+      - name: Lint (Ruff)
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Tests
+        run: uv run pytest -q
+      - name: Build AgentCore package
+        working-directory: .
+        run: scripts/build-agent-zip.sh
+
   infra:
     runs-on: ubuntu-latest
     permissions:
@@ -69,8 +86,8 @@ jobs:
       - name: Validate local env
         working-directory: infra/envs/local
         run: terraform init -backend=false -input=false && terraform validate
-      - name: Build Lambda package (needed by plan)
-        run: scripts/build-api-zip.sh
+      - name: Build Lambda and agent packages (needed by plan)
+        run: scripts/build-api-zip.sh && scripts/build-agent-zip.sh
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}

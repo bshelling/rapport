@@ -8,15 +8,21 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ReportFlow } from "@/components/report/report-flow";
+import { ReportFlow, storeDraftId } from "@/components/report/report-flow";
 
-type ReportContextValue = { openReport: () => void };
+type ReportContextValue = {
+  /** Opens the report modal, resuming `draftId` (e.g. one the assistant drafted). */
+  openReport: (draftId?: string) => void;
+};
 
 const ReportContext = createContext<ReportContextValue | null>(null);
 
 export function ReportProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const openReport = useCallback(() => setOpen(true), []);
+  const openReport = useCallback((draftId?: string) => {
+    if (draftId) storeDraftId(draftId);
+    setOpen(true);
+  }, []);
   const value = useMemo(() => ({ openReport }), [openReport]);
 
   return (

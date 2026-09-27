@@ -1,4 +1,4 @@
-.PHONY: env local-up local-down local-infra seed api web test e2e lint build-api
+.PHONY: env local-up local-down local-infra seed api agent web test e2e lint build-api
 
 LOCAL_AWS = AWS_ENDPOINT_URL=http://localhost:4566 AWS_DEFAULT_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
 
@@ -33,6 +33,15 @@ api:
 		uv run uvicorn app.main:app --reload --port 8000
 
 ## Run the web app (http://localhost:3000).
+## Chat agent on :8080. Data stays in MiniStack; Bedrock, Location and the Jev key
+## use your AWS credentials. Run the API with RAPPORT_AGENT_MODE=http to use it.
+agent:
+	cd agent && PYTHONPATH=../api AWS_REGION=us-east-1 \
+		AWS_ENDPOINT_URL_DYNAMODB=http://localhost:4566 AWS_ENDPOINT_URL_S3=http://localhost:4566 \
+		RAPPORT_TABLE_NAME=rapport-local RAPPORT_PHOTO_BUCKET=rapport-photos-local \
+		RAPPORT_AI_MODE=live RAPPORT_GEO_MODE=live RAPPORT_NOLA311_MODE=live \
+		uv run main.py
+
 web:
 	cd web && bun run dev
 

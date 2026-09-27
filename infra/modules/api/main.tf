@@ -62,6 +62,11 @@ variable "typesafe_key_param" {
   type        = string
 }
 
+variable "agent_runtime_arn" {
+  description = "AgentCore runtime behind /api/agent/chat."
+  type        = string
+}
+
 variable "ai_mode" {
   description = "live = Bedrock + TypeSafe; fake = deterministic stand-ins."
   type        = string
@@ -147,6 +152,27 @@ data "aws_iam_policy_document" "api" {
     actions   = ["s3:ListBucket"]
     resources = [var.photo_bucket_arn]
   }
+  statement {
+    sid       = "ChatAgent"
+    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [var.agent_runtime_arn, "${var.agent_runtime_arn}/*"]
+  }
+  # Jev screens the opening chat message for topic before the agent runs.
+  statement {
+    sid       = "TypeSafeKey"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:parameter${var.typesafe_key_param}"]
+  }
+  statement {
+    sid       = "DecryptViaSsm"
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:ViaService"
+      values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "api" {
@@ -173,17 +199,20 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      RAPPORT_ENVIRONMENT     = var.env
-      RAPPORT_VERSION         = var.app_version
-      RAPPORT_CORS_ORIGINS    = "[]"
-      RAPPORT_TABLE_NAME      = var.table_name
-      RAPPORT_PHOTO_BUCKET    = var.photo_bucket_name
-      RAPPORT_AUTH_MODE       = "apigw"
-      RAPPORT_WORKER_MODE     = "lambda"
-      RAPPORT_WORKER_FUNCTION = local.worker_name
-      RAPPORT_AI_MODE         = var.ai_mode
-      RAPPORT_GEO_MODE        = "live"
-      RAPPORT_NOLA311_MODE    = "live"
+      RAPPORT_ENVIRONMENT        = var.env
+      RAPPORT_VERSION            = var.app_version
+      RAPPORT_CORS_ORIGINS       = "[]"
+      RAPPORT_TABLE_NAME         = var.table_name
+      RAPPORT_PHOTO_BUCKET       = var.photo_bucket_name
+      RAPPORT_AUTH_MODE          = "apigw"
+      RAPPORT_WORKER_MODE        = "lambda"
+      RAPPORT_WORKER_FUNCTION    = local.worker_name
+      RAPPORT_AI_MODE            = var.ai_mode
+      RAPPORT_GEO_MODE           = "live"
+      RAPPORT_NOLA311_MODE       = "live"
+      RAPPORT_AGENT_MODE         = "runtime"
+      RAPPORT_AGENT_RUNTIME_ARN  = var.agent_runtime_arn
+      RAPPORT_TYPESAFE_KEY_PARAM = var.typesafe_key_param
     }
   }
 

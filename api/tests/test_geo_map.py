@@ -100,6 +100,34 @@ def test_location_service_parsing():
     assert stub.calls[-1][1]["QueryPosition"] == [-90.1027, 29.9212]  # lng, lat order
 
 
+def test_suggest_falls_back_to_geocode_for_intersections():
+    stub = _Stub(
+        autocomplete={"ResultItems": []},
+        geocode={
+            "ResultItems": [
+                {
+                    "PlaceId": "far",
+                    "Title": "Magazine St, Baton Rouge",
+                    "Position": [-91.18, 30.45],
+                },
+                {
+                    "PlaceId": "int1",
+                    "Title": "Magazine St & Napoleon Ave",
+                    "Position": [-90.1016, 29.9208],
+                    "Address": {"Label": INTERSECTION},
+                },
+            ]
+        },
+    )
+    g = _live(stub)
+    [s] = g.suggest("Magazine at Napoleon")  # the Baton Rouge match is dropped
+    assert s.place_id == "int1" and s.title == INTERSECTION
+    geocode_call = next(kw for name, kw in stub.calls if name == "geocode")
+    assert geocode_call["BiasPosition"] == [-90.0715, 29.9511]
+    place = g.geocode("Magazine at Napoleon")
+    assert (place.lat, place.address) == (29.9208, "Magazine St & Napoleon Ave")
+
+
 def test_place_outside_new_orleans_is_rejected():
     stub = _Stub(get_place={"Position": [-91.18, 30.45], "Address": {"Label": "Baton Rouge"}})
     assert _live(stub).place("x") is None

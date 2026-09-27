@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     nola311_mode: Literal["live", "fake"] = "fake"
     # Place search/geocoding (Amazon Location): "live" or "fake" (local dev, tests).
     geo_mode: Literal["live", "fake"] = "fake"
+    # Chat agent: "runtime" (AgentCore), "http" (local agent server), "fake" (tests).
+    agent_mode: Literal["runtime", "http", "fake"] = "fake"
+    agent_runtime_arn: str = ""
+    agent_url: str = "http://localhost:8080"
+    agent_max_per_session: int = 30
+    agent_max_per_day: int = 60
     # "lambda": async-invoke the worker function; "inline": run in-process (local dev).
     worker_mode: Literal["lambda", "inline"] = "inline"
     worker_function: str = ""

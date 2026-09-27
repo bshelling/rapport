@@ -31,7 +31,7 @@ function storedDraftId(): string | null {
   }
 }
 
-function storeDraftId(id: string | null) {
+export function storeDraftId(id: string | null) {
   try {
     if (id) sessionStorage.setItem(DRAFT_KEY, id);
     else sessionStorage.removeItem(DRAFT_KEY);

@@ -31,6 +31,12 @@ variable "api_zip_path" {
   default     = "../../../dist/api.zip"
 }
 
+variable "agent_zip_path" {
+  description = "Agent package from scripts/build-agent-zip.sh."
+  type        = string
+  default     = "../../../dist/agent.zip"
+}
+
 variable "app_version" {
   description = "Deployed version (git SHA in CI)."
   type        = string
@@ -82,6 +88,18 @@ module "maps" {
   allowed_origins = [module.web.site_url, "http://localhost:3000"]
 }
 
+module "agent" {
+  source             = "../../modules/agent"
+  env                = local.env
+  zip_path           = var.agent_zip_path
+  code_bucket_name   = "rapport-code-${local.env}-${local.account_id}"
+  table_name         = module.data.table_name
+  table_arn          = module.data.table_arn
+  photo_bucket_name  = module.data.photo_bucket_name
+  photo_bucket_arn   = module.data.photo_bucket_arn
+  typesafe_key_param = "/rapport/${local.env}/typesafe_api_key"
+}
+
 module "api" {
   source             = "../../modules/api"
   env                = local.env
@@ -94,6 +112,7 @@ module "api" {
   jwt_issuer         = module.auth.issuer
   jwt_audience       = [module.auth.client_id]
   typesafe_key_param = "/rapport/${local.env}/typesafe_api_key"
+  agent_runtime_arn  = module.agent.runtime_arn
 }
 
 module "web" {
@@ -141,4 +160,8 @@ output "ingest_function_name" {
 
 output "table_name" {
   value = module.data.table_name
+}
+
+output "agent_runtime_arn" {
+  value = module.agent.runtime_arn
 }
