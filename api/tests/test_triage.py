@@ -62,6 +62,35 @@ def test_upload_confirmation_runs_triage(client):
     assert "leaves" in t["observation"]["scene_description"]
 
 
+def test_not_a_street_problem_result_can_be_read_back(client, monkeypatch):
+    """Regression: a "not an issue" suggestion has no request_type. Drafts are stored
+    without None values, so reading the draft back must not require it (prod 500'd)."""
+    from app.models.insights import ReasonOption
+
+    class NotAnIssueJev(jev.FakeJev):
+        def classify(self, obs, selected_reason, description):
+            result = super().classify(obs, selected_reason, description)
+            result.suggested = ReasonOption(
+                request_type=None,
+                request_reason="Not a street or drainage problem",
+                probability=0.9,
+            )
+            return result
+
+    monkeypatch.setattr(triage, "get_jev", lambda: NotAnIssueJev())
+    draft_id = _draft(client, "Catch Basin Clogged")
+    _upload(client, draft_id)
+    res = client.get(f"/api/drafts/{draft_id}", headers=ME)
+    assert res.status_code == 200, res.text
+    t = res.json()["triage"]
+    assert t["status"] == "done"
+    assert t["suggested"] == {
+        "request_type": None,
+        "request_reason": "Not a street or drainage problem",
+        "probability": 0.9,
+    }
+
+
 def test_upload_confirmation_requires_the_object(client):
     draft_id = _draft(client)
     photo = client.post(f"/api/drafts/{draft_id}/photos", json={}, headers=ME).json()["photo"]
