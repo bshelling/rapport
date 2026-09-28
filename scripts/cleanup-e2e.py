@@ -29,6 +29,18 @@ def e2e_sub(env: str) -> str:
     return next(a["Value"] for a in user["UserAttributes"] if a["Name"] == "sub")
 
 
+def _all(call, **kwargs) -> list[dict]:
+    """Every page of a query or scan. A single page is capped at 1 MB, and the table
+    holds thousands of NOLA 311 items, so one page misses most drafts."""
+    items: list[dict] = []
+    while True:
+        res = call(**kwargs)
+        items += res["Items"]
+        if "LastEvaluatedKey" not in res:
+            return items
+        kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
+
+
 def main(env: str) -> None:
     sub = e2e_sub(env)
     if env == "local":
@@ -48,9 +60,9 @@ def main(env: str) -> None:
         bucket = f"rapport-photos-{env}-{account}"
     table = ddb.Table(f"rapport-{env}")
 
-    reports = table.query(IndexName="GSI1", KeyConditionExpression=Key("GSI1PK").eq(f"USER#{sub}"))[
-        "Items"
-    ]
+    reports = _all(
+        table.query, IndexName="GSI1", KeyConditionExpression=Key("GSI1PK").eq(f"USER#{sub}")
+    )
     deleted_items = deleted_photos = 0
     with table.batch_writer() as batch:
         for report in reports:
@@ -61,9 +73,10 @@ def main(env: str) -> None:
             for key in report.get("photo_keys", []):
                 s3.delete_object(Bucket=bucket, Key=key)
                 deleted_photos += 1
-        drafts = table.scan(
-            FilterExpression=Attr("PK").begins_with("DRAFT#") & Attr("user_sub").eq(sub)
-        )["Items"]
+        drafts = _all(
+            table.scan,
+            FilterExpression=Attr("PK").begins_with("DRAFT#") & Attr("user_sub").eq(sub),
+        )
         for draft in drafts:
             batch.delete_item(Key={"PK": draft["PK"], "SK": draft["SK"]})
             for photo in draft.get("photos", []):
