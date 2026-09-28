@@ -113,6 +113,9 @@ module "api" {
   jwt_audience       = [module.auth.client_id]
   typesafe_key_param = "/rapport/${local.env}/typesafe_api_key"
   agent_runtime_arn  = module.agent.runtime_arn
+  # Opus 5 needs a Bedrock model agreement that's still pending; Opus 4.6 (cross-region
+  # inference profile) triages photos until then. Remove this line to go back to Opus 5.
+  claude_model = "us.anthropic.claude-opus-4-6-v1"
 }
 
 module "web" {
