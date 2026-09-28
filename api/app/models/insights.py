@@ -17,7 +17,9 @@ class Observation(BaseModel):
 
 
 class ReasonOption(BaseModel):
-    request_type: str | None  # None for "not an issue"
+    # None for "not an issue". Defaults to None because drafts are stored without
+    # None values, so it is missing, not null, when read back.
+    request_type: str | None = None
     request_reason: str
     probability: float
 
