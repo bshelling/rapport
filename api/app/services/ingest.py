@@ -8,16 +8,15 @@ from boto3.dynamodb.conditions import Key
 from app.config import get_settings
 from app.db import from_dynamo, get_table
 from app.geo import distance_m, geohash_neighborhood
-from app.html import plain_text
 from app.services import nola311
-from app.services.jev import get_jev
 
 log = logging.getLogger(__name__)
 
 STATE_KEY = {"PK": "INGEST#nola311", "SK": "STATE"}
-MATCH_RADIUS_M = 30
+# Same reasoning as duplicates.CITY_RADIUS_M: the City geocodes the address, residents
+# pin the problem; they can be 100 m+ apart for the same pothole.
+MATCH_RADIUS_M = 150
 MATCH_WINDOW = timedelta(hours=72)
-MATCH_THRESHOLD = 0.85
 SUGGEST_FOR_DAYS = 7
 
 
@@ -206,28 +205,17 @@ def suggest_links() -> int:
                 city_created = datetime.fromisoformat(city["created_at"]).replace(tzinfo=UTC)
                 if d > MATCH_RADIUS_M or abs(city_created - created) > MATCH_WINDOW:
                     continue
-                p = get_jev().same_issue(
-                    {
-                        "reason": report["request_reason"],
-                        "description": plain_text(report.get("description_html") or ""),
-                        "reported": report["created_at"][:10],
-                    },
-                    {
-                        "reason": city["request_reason"],
-                        "address": city.get("address"),
-                        "distance_m": round(d, 1),
-                        "reported": city["created_at"][:10],
-                    },
-                )
-                if p >= MATCH_THRESHOLD and (best is None or p > best[0]):
-                    best = (p, city["id"])
+                # Same reason, nearby, filed within days of each other: suggest the
+                # closest. It's only a suggestion; the resident confirms or dismisses it.
+                # (Jev's "same spot?" question can't account for the City placing
+                # requests at the address.)
+                if best is None or d < best[0]:
+                    best = (d, city["id"])
         if best:
             table.update_item(
                 Key={"PK": report["PK"], "SK": "META"},
                 UpdateExpression="SET suggested_ticket = :t",
-                ExpressionAttributeValues={
-                    ":t": {"ticket": best[1], "probability": str(round(best[0], 3))}
-                },
+                ExpressionAttributeValues={":t": {"ticket": best[1], "probability": "1.0"}},
             )
             suggested += 1
     return suggested

@@ -1,7 +1,13 @@
 """Duplicate detection: is someone's report of this same problem already open nearby?
 
-Cheap geometric filtering first (geohash cells, same type, open, recent, <= 75 m),
-then Jev decides "same physical issue?" for the closest few.
+Cheap geometric filtering first (geohash cells, same type, open, recent, <= 75 m for
+residents' reports, <= 150 m for City requests), then Jev decides "same physical issue?"
+for the closest few. City requests come from the nightly import plus a live query of
+the City's dataset, so one filed since last night is caught too.
+
+An open City request with the same reason is always shown: the City places it at the
+address, so Jev (which asks "same spot?") can't tell it apart from a neighbor's problem
+100 m away. The resident knows, and is asked before submitting.
 """
 
 import logging
@@ -9,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 
 from boto3.dynamodb.conditions import Key
 
+from app.config import get_settings
 from app.db import from_dynamo, get_table, to_dynamo
 from app.geo import distance_m, geohash_neighborhood
 from app.html import plain_text
@@ -19,6 +26,9 @@ from app.services.jev import get_jev
 log = logging.getLogger(__name__)
 
 RADIUS_M = 75
+# The City places a request at the address's position, while residents pin the problem
+# itself, often 100 m or more away (e.g. mid-block vs. the house number).
+CITY_RADIUS_M = 150
 MAX_AGE_DAYS = 90
 MAX_CHECKED = 5
 THRESHOLD = 0.7
@@ -35,7 +45,7 @@ def check_key(request_type: str, lat: float, lng: float) -> str:
 def nearby(
     request_type: str, lat: float, lng: float, exclude_ids: set[str] | None = None
 ) -> list[tuple[float, dict]]:
-    """Open, recent reports of the same type within RADIUS_M, closest first."""
+    """Open, recent reports and City requests of the same type nearby, closest first."""
     table = get_table()
     since = (datetime.now(UTC) - timedelta(days=MAX_AGE_DAYS)).isoformat(timespec="seconds")
     found: list[tuple[float, dict]] = []
@@ -55,10 +65,30 @@ def nearby(
                 continue
             loc = item.get("location") or {"lat": item.get("lat"), "lng": item.get("lng")}
             d = distance_m(lat, lng, float(loc["lat"]), float(loc["lng"]))
-            if d <= RADIUS_M:
+            if d <= (CITY_RADIUS_M if item.get("source") == "nola311" else RADIUS_M):
                 found.append((d, item))
+    found += _live_city_requests(request_type, lat, lng, {i["id"] for _, i in found})
     found.sort(key=lambda pair: pair[0])
     return found
+
+
+def _live_city_requests(
+    request_type: str, lat: float, lng: float, known: set[str]
+) -> list[tuple[float, dict]]:
+    if get_settings().nola311_mode != "live":
+        return []
+    from app.services import nola311
+
+    try:
+        items = nola311.open_requests_near(lat, lng, request_type, CITY_RADIUS_M, MAX_AGE_DAYS)
+    except Exception:  # noqa: BLE001 - the nightly copy still covers older requests
+        log.warning("live City request lookup failed", exc_info=True)
+        return []
+    return [
+        (distance_m(lat, lng, float(i["location"]["lat"]), float(i["location"]["lng"])), i)
+        for i in items
+        if i["id"] not in known
+    ]
 
 
 def _candidate(item: dict, dist: float, user_sub: str, probability: float) -> DuplicateCandidate:
@@ -93,15 +123,20 @@ def run(draft_id: str) -> DuplicateCheck | None:
         "reason": draft.get("request_reason"),
         "description": plain_text(draft.get("description_html") or "") or None,
         "photo": (triage.get("observation") or {}).get("scene_description"),
+        "address": loc.get("address"),
     }
     try:
         matches = []
         for dist, item in nearby(draft["request_type"], loc["lat"], loc["lng"])[:MAX_CHECKED]:
+            if item.get("source") == "nola311" and item["request_reason"] == new["reason"]:
+                matches.append(_candidate(item, dist, draft["user_sub"], 1.0))
+                continue
             existing_report = {
                 "reason": item["request_reason"],
                 "description": plain_text(item.get("description_html") or "") or None,
                 "distance_m": round(dist, 1),
                 "reported": item["created_at"][:10],
+                "address": item.get("address") or (item.get("location") or {}).get("address"),
             }
             p = get_jev().same_issue(new, existing_report)
             if p >= THRESHOLD:

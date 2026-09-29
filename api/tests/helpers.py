@@ -13,7 +13,13 @@ LOCATION = {"lat": 29.9212, "lng": -90.1027, "address": "Napoleon Ave & Magazine
 DESCRIPTION = "<p>Catch basin is <strong>full of leaves</strong>.</p>"
 
 
-def submit_report(client, user="user-1", reason=("Drainage", "Catch Basin Clogged"), photo=False):
+def submit_report(
+    client,
+    user="user-1",
+    reason=("Drainage", "Catch Basin Clogged"),
+    photo=False,
+    confirm_new=False,
+):
     headers = dev_headers(user, f"{user}@example.com")
     draft_id = client.post("/api/drafts", headers=headers).json()["id"]
     for body in (
@@ -27,6 +33,7 @@ def submit_report(client, user="user-1", reason=("Drainage", "Catch Basin Clogge
     if photo:
         p = client.post(f"/api/drafts/{draft_id}/photos", json={}, headers=headers).json()["photo"]
         boto3.client("s3").put_object(Bucket=BUCKET, Key=p["key"], Body=b"\xff\xd8" + b"0" * 2048)
-    res = client.post(f"/api/drafts/{draft_id}/submit", headers=headers)
+    body = {"confirm_new": True} if confirm_new else None
+    res = client.post(f"/api/drafts/{draft_id}/submit", json=body, headers=headers)
     assert res.status_code == 201, res.text
     return res.json()

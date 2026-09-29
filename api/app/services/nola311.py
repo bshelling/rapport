@@ -11,7 +11,7 @@ import ssl
 import urllib.parse
 import urllib.request
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from functools import lru_cache
 
@@ -113,6 +113,28 @@ def to_item(row: dict) -> dict | None:
         item["GSI3PK"] = "MAP311"
         item["GSI3SK"] = created
     return item
+
+
+def open_requests_near(
+    lat: float, lng: float, request_type: str, radius_m: int, days: int, timeout: float = 4.0
+) -> list[dict]:
+    """Open City requests of this type near a point, straight from the live dataset.
+
+    The nightly import can be a day behind; this catches requests filed since.
+    Items have the same shape as imported ones (to_item).
+    """
+    since = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+    reasons = ", ".join(f"'{r}'" for r, t in _TYPE_OF.items() if t == request_type)
+    rows = _fetch(
+        {
+            "$where": f"within_circle(geocoded_column, {lat}, {lng}, {radius_m}) "
+            f"AND request_status = 'Pending' AND request_reason IN ({reasons}) "
+            f"AND date_created > '{since}'",
+            "$limit": 20,
+        },
+        timeout=timeout,
+    )
+    return [item for item in (to_item(r) for r in rows) if item]
 
 
 BASINS_URL = "https://data.nola.gov/resource/se4p-ierc.json"

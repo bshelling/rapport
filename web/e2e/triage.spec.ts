@@ -1,6 +1,12 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { hasE2EUser, openReport, signInFromHeader, stepTwo } from "./helpers";
+import {
+  hasE2EUser,
+  openReport,
+  signInFromHeader,
+  stepTwo,
+  submitReport,
+} from "./helpers";
 
 const PHOTO = path.join(__dirname, "fixtures", "pothole-gps.jpg");
 // Locally the API runs deterministic fake AI; against prod the model's answers vary.
@@ -79,7 +85,7 @@ test.describe("AI photo triage", () => {
       await expect(
         page.getByRole("textbox", { name: "Description" }),
       ).toContainText("clogged with leaves");
-      await page.getByRole("button", { name: "Submit report" }).click();
+      await submitReport(page);
       await expect(page.getByTestId("report-submitted")).toContainText(
         "Catch Basin Clogged (Drainage)",
       );

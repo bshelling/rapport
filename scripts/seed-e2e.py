@@ -1,7 +1,9 @@
-"""Create (or reset) a report owned by a fake "neighbor" for Playwright's +1 tests.
+"""Create (or reset) the fixed data Playwright's tests need, then print the neighbor
+report's id. Removed again by scripts/cleanup-e2e.py.
 
-It sits where the tests mock the browser's GPS, so the duplicate check finds it.
-Prints the report id. Removed again by scripts/cleanup-e2e.py.
+- A report owned by a fake "neighbor" for the +1 tests, where the tests mock the GPS.
+- An open NOLA 311 request (fake number, year 2099) for the "already reported to the
+  City" test. It is kept off the public map and never appears in the City's data.
 
 Usage: uv run --with boto3 scripts/seed-e2e.py <env>     (prod, local)
 """
@@ -20,6 +22,8 @@ from app.geo import geohash  # noqa: E402
 REPORT_ID = "e2e-neighbor-pothole"
 NEIGHBOR = "e2e-neighbor"
 LAT, LNG = 29.9277, -90.0741  # matches the geolocation mocked in web/e2e
+CITY_TICKET = "2099-0000001"
+CITY_LAT, CITY_LNG = 29.9400, -90.0800  # web/e2e/report.spec.ts "already reported"
 
 
 def table_for(env: str):
@@ -67,6 +71,27 @@ def main(env: str) -> None:
             "supporter_count": 0,
             "created_at": now,
             "updated_at": now,
+        }
+    )
+    table.put_item(
+        Item={
+            # Same shape as the nightly import (app.services.nola311.to_item), minus
+            # the GSI3 map keys so it never shows on the public map.
+            "PK": f"NOLA311#{CITY_TICKET}",
+            "SK": "META",
+            "GSI2PK": f"GEO#{geohash(CITY_LAT, CITY_LNG, 6)}",
+            "GSI2SK": f"TYPE#Drainage#{now[:19]}",
+            "id": CITY_TICKET,
+            "source": "nola311",
+            "nola311_ticket": CITY_TICKET,
+            "request_type": "Drainage",
+            "request_reason": "Street Flooding",
+            "request_status": "Pending",
+            "status": "filed_with_311",
+            "location": {"lat": Decimal(str(CITY_LAT)), "lng": Decimal(str(CITY_LNG))},
+            "address": "E2E test request",
+            "created_at": now[:19],
+            "modified_at": now[:19],
         }
     )
     print(REPORT_ID)

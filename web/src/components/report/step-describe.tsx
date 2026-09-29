@@ -3,6 +3,7 @@
 import { MapPin } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { LocationPicker } from "@/components/map/location-picker";
+import { AlreadyReported } from "@/components/report/already-reported";
 import { DuplicatesPanel } from "@/components/report/duplicates";
 import { InsightsPanel } from "@/components/report/insights";
 import { RichText } from "@/components/report/rich-text";
@@ -10,12 +11,15 @@ import { StepNav } from "@/components/report/step-nav";
 import { MAX_PHOTOS, usePhotos } from "@/components/report/use-photos";
 import {
   type ApiError,
+  alreadyReported,
   type Draft,
   type DraftLocation,
+  type DuplicateCandidate,
   patchDraft,
   type ReasonOption,
   type Report,
   reverseGeocode,
+  type SubmitOptions,
   submitDraft,
 } from "@/lib/api";
 import { inNewOrleans } from "@/lib/geo";
@@ -61,6 +65,10 @@ export function StepDescribe({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Open City requests for this problem, found when submitting; the resident chooses.
+  const [cityMatches, setCityMatches] = useState<DuplicateCandidate[] | null>(
+    null,
+  );
   // Bumped to re-mount the editor when a suggested description is applied.
   const [editorKey, setEditorKey] = useState(0);
 
@@ -77,6 +85,7 @@ export function StepDescribe({
     }
     setLocation({ lat, lng, source, address: address || null });
     setLocationNote(null);
+    setCityMatches(null); // a new spot needs a new check (done again on submit)
     // Fill in a readable address if the resident hasn't typed one.
     if (!address.trim()) {
       reverseGeocode(lat, lng)
@@ -175,8 +184,12 @@ export function StepDescribe({
     setEditorKey((k) => k + 1);
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    return send();
+  };
+
+  const send = async (options?: SubmitOptions) => {
     setError(null);
     if (!location) return setError("Add the location of the problem.");
     if (textLength < MIN_TEXT)
@@ -193,8 +206,13 @@ export function StepDescribe({
           description_html: html,
         }),
       );
-      onSubmitted(await submitDraft(draft.id));
+      onSubmitted(await submitDraft(draft.id, options));
     } catch (err) {
+      const matches = alreadyReported(err);
+      if (matches) {
+        setCityMatches(matches);
+        return;
+      }
       const missing = (err as ApiError)?.detail as
         | { detail?: { missing?: string[] } }
         | undefined;
@@ -260,6 +278,7 @@ export function StepDescribe({
             onChange={(loc) => {
               setLocation({ ...loc, address: address || null });
               setLocationNote(null);
+              setCityMatches(null);
             }}
             onAddress={(a) => setAddress(a)}
           />
@@ -358,6 +377,15 @@ export function StepDescribe({
           {textLength} / {MAX_TEXT}
         </p>
       </section>
+
+      {cityMatches && cityMatches.length > 0 && (
+        <AlreadyReported
+          matches={cityMatches}
+          busy={busy}
+          onLink={(ticket) => send({ link_ticket: ticket })}
+          onSubmitNew={() => send({ confirm_new: true })}
+        />
+      )}
 
       <StepNav
         onBack={onBack}

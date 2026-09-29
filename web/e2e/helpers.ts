@@ -52,6 +52,25 @@ export async function describeIssue(page: Page, text: string) {
 }
 
 /** File a report using the current (mocked) location; lands on the success screen. */
+/**
+ * Submit step 3 and wait for the success screen. Against production the live City
+ * data may have a real open request near the test's GPS; then the form asks, and a
+ * test report is always "a different problem".
+ */
+export async function submitReport(page: Page) {
+  const form = page.getByRole("form", { name: "Describe the request" });
+  await form.getByRole("button", { name: "Submit report" }).click();
+  const done = page.getByTestId("report-submitted");
+  const asked = page.getByTestId("already-reported");
+  await expect(done.or(asked)).toBeVisible({ timeout: 30_000 });
+  if (await asked.isVisible()) {
+    await asked
+      .getByRole("button", { name: /different problem: submit a new request/ })
+      .click();
+  }
+  await expect(done).toBeVisible();
+}
+
 export async function fileReport(
   page: Page,
   type: string,
@@ -68,6 +87,5 @@ export async function fileReport(
     .getByLabel("Nearest address or landmark")
     .fill("Magazine St & Jackson Ave");
   await describeIssue(page, text);
-  await form.getByRole("button", { name: "Submit report" }).click();
-  await expect(page.getByTestId("report-submitted")).toBeVisible();
+  await submitReport(page);
 }
