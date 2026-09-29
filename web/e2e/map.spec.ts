@@ -5,6 +5,7 @@ import {
   signInFromHeader,
   stepOne,
   stepTwo,
+  submitReport,
 } from "./helpers";
 
 test("home shows the public live map", async ({ page }) => {
@@ -60,8 +61,7 @@ test.describe("maps in the report flow", () => {
     const editor = page.getByRole("textbox", { name: "Description" });
     await editor.click();
     await page.keyboard.type("Pothole in the right lane, about a foot across.");
-    await form.getByRole("button", { name: "Submit report" }).click();
-    await expect(page.getByTestId("report-submitted")).toBeVisible();
+    await submitReport(page);
 
     await page.goto("/");
     await expect(page.getByTestId("map-pin").first()).toBeAttached();

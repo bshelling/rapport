@@ -54,11 +54,21 @@ sequenceDiagram
 
 Open reports of the same type within 75 m and 90 days, found through the geohash index (GSI2), are compared with Jev ("is this the same physical problem?"). Likely matches are offered as "+1 instead", which adds the resident as a supporter (optionally with their photo) rather than creating a second report.
 
+### Already reported to NOLA 311
+
+Before a report is created, submit checks for open City requests for the same problem:
+
+- **Where it looks:** open City requests of the same type within **150 m** from the nightly import, plus a **live query of data.nola.gov**, which catches requests filed since last night.
+- **Why 150 m:** the City places a request at its address while residents pin the problem itself, so the two are often 100 m or more apart.
+- **What counts as a match:** a request with the same reason always counts. For a related reason, Jev decides. Jev isn't asked about same-reason requests because its "same spot?" answer can't account for the City's address-based placement.
+- **What the resident sees:** if there's a match, submit returns 409 and the form offers **Link my report to #…**, which files the report against that request and verifies it, or **It's a different problem**.
+- **If the check fails:** if the City's API is down, the check never blocks a report.
+
 ### NOLA 311 sync
 
 - **Nightly import:** the import Lambda fetches City requests modified since the last run from `data.nola.gov` (a 24-month backfill the first time) and stores them for the map layer and the stats.
 - **Status sync:** a report linked to a City request number (a `TICKET#` pointer) follows the City's status. Closed means *resolved*; still open but updated more than an hour after filing means *in progress*. Each change is recorded as a timeline event from the City.
-- **Suggested links:** recent unlinked reports get a suggested City request when one matches within 30 m, has the same reason and was filed within 72 hours, and Jev agrees it's the same problem. The resident confirms or dismisses it.
+- **Suggested links:** recent unlinked reports get the closest City request with the same reason within 150 m, filed within 72 hours. The resident confirms or dismisses it.
 - **Impact stats:** the stats are recomputed and stored as `STATS#latest`.
 
 ### Ask Rapport (chat)

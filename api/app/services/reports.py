@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -22,6 +23,8 @@ from app.models.report import (
 )
 from app.services import drafts
 
+log = logging.getLogger(__name__)
+
 
 def _dec(value: float | None) -> Decimal | None:
     return None if value is None else Decimal(str(round(value, 4)))
@@ -37,13 +40,39 @@ class ReportNotFound(Exception):
     pass
 
 
+class AlreadyReported(Exception):
+    """The City already has an open request for this problem; the resident must choose."""
+
+    def __init__(self, matches: list):
+        super().__init__(f"{len(matches)} open City request(s) nearby")
+        self.matches = matches
+
+
+def city_matches(draft_id: str) -> list:
+    """Open City requests that look like this draft's problem, checked for its current pin.
+
+    Runs the duplicate check now if it hasn't run for this location yet. A failed check
+    returns nothing: submitting must never depend on the City's API being up.
+    """
+    from app.services import duplicates
+
+    check = duplicates.run(draft_id)
+    if not check or check.status != "done":
+        return []
+    return [m for m in check.matches if m.source == "nola311"]
+
+
 class DraftIncomplete(Exception):
     def __init__(self, missing: list[str]):
         super().__init__(", ".join(missing))
         self.missing = missing
 
 
-def submit_draft(draft_id: str, user_sub: str) -> Report:
+def submit_draft(
+    draft_id: str, user_sub: str, confirm_new: bool = False, link_ticket: str | None = None
+) -> Report:
+    """Create the report. If the City already has an open request for the same problem,
+    the resident must either link to it (`link_ticket`) or confirm it's new."""
     draft = drafts.get(draft_id, user_sub, with_urls=False)
     missing = draft.missing_fields()
     # Photos are optional, but every reserved slot must have been uploaded.
@@ -51,6 +80,10 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
         missing.append("photos")
     if missing:
         raise DraftIncomplete(missing)
+    if not confirm_new and not link_ticket:
+        matches = city_matches(draft_id)
+        if matches:
+            raise AlreadyReported(matches)
 
     report_id = str(ULID())
     now = datetime.now(UTC).isoformat(timespec="seconds")
@@ -139,6 +172,13 @@ def submit_draft(draft_id: str, user_sub: str) -> Report:
             },
         ]
     )
+    if link_ticket:
+        # Same path as pasting the number on the report page: verified against City data.
+        # The report exists either way; if linking fails the resident can add it there.
+        try:
+            set_ticket(report_id, user_sub, link_ticket)
+        except Exception:  # noqa: BLE001
+            log.exception("linking %s to report %s failed", link_ticket, report_id)
     return Report(
         id=report_id,
         request_type=item["request_type"],

@@ -246,8 +246,29 @@ export const deletePhoto = (id: string, photoId: string) =>
     auth: true,
   });
 
-export const submitDraft = (id: string) =>
-  request<Report>(`/api/drafts/${id}/submit`, { method: "POST", auth: true });
+/** After an "already reported" answer, the resident links to the City request or confirms. */
+export type SubmitOptions = { confirm_new?: boolean; link_ticket?: string };
+
+export const submitDraft = (id: string, options?: SubmitOptions) =>
+  request<Report>(`/api/drafts/${id}/submit`, {
+    method: "POST",
+    body: options ? JSON.stringify(options) : undefined,
+    auth: true,
+  });
+
+/**
+ * Open NOLA 311 requests for the same problem, when submit is refused with
+ * 409 `already_reported`; null for any other error.
+ */
+export function alreadyReported(err: unknown): DuplicateCandidate[] | null {
+  if (!(err instanceof ApiError) || err.status !== 409) return null;
+  const detail = (
+    err.detail as {
+      detail?: { code?: string; matches?: DuplicateCandidate[] };
+    }
+  )?.detail;
+  return detail?.code === "already_reported" ? (detail.matches ?? []) : null;
+}
 
 /** Upload straight to S3 with the presigned POST; S3 enforces type and size. */
 export async function uploadToS3(

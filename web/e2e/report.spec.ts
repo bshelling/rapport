@@ -8,6 +8,7 @@ import {
   signInWithForm,
   stepOne,
   stepTwo,
+  submitReport,
 } from "./helpers";
 
 const PHOTO = path.join(__dirname, "fixtures", "pothole-gps.jpg");
@@ -87,10 +88,9 @@ test.describe("report flow", () => {
       "Catch basin is packed with leaves and water is backing up.",
     );
     await shot("3-describe");
-    await describeForm.getByRole("button", { name: "Submit report" }).click();
+    await submitReport(page);
 
     const done = page.getByTestId("report-submitted");
-    await expect(done).toBeVisible();
     await expect(done).toContainText("Catch Basin Clogged (Drainage)");
     await page.waitForTimeout(800); // let the checkmark animation finish
     await shot("4-submitted");
@@ -120,7 +120,7 @@ test.describe("report flow", () => {
     );
 
     await describeIssue(page, " but now long enough to submit.");
-    await form.getByRole("button", { name: "Submit report" }).click();
+    await submitReport(page);
     await expect(page.getByTestId("report-submitted")).toContainText(
       "Pothole (Roads and Streets)",
     );
@@ -156,5 +156,47 @@ test.describe("report flow", () => {
     await expect(
       page.getByRole("form", { name: "Contact info" }),
     ).toBeVisible();
+  });
+});
+
+test.describe("already reported to NOLA 311", () => {
+  test.skip(!hasE2EUser, "E2E_EMAIL / E2E_PASSWORD not set");
+  // Where scripts/seed-e2e.py puts an open City request (#2099-0000001, Street Flooding).
+  test.use({
+    geolocation: { latitude: 29.94, longitude: -90.08 },
+    permissions: ["geolocation"],
+  });
+
+  test("submit offers to link the report to the City's open request", async ({
+    page,
+  }, testInfo) => {
+    await page.goto("/");
+    await signInFromHeader(page);
+    await openReport(page);
+    await stepOne(page, "Drainage", "Street Flooding");
+    await stepTwo(page);
+    const form = page.getByRole("form", { name: "Describe the request" });
+    await form.getByRole("button", { name: /Use my current location/ }).click();
+    await expect(page.getByTestId("location-set")).toBeVisible();
+    await describeIssue(
+      page,
+      "Water across both lanes after every heavy rain.",
+    );
+    await form.getByRole("button", { name: "Submit report" }).click();
+
+    const asked = page.getByTestId("already-reported");
+    await expect(asked).toBeVisible({ timeout: 30_000 });
+    await expect(asked).toContainText("request #2099-0000001");
+    await asked.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: `screenshots/already-reported-${testInfo.project.name}.png`,
+    });
+
+    await asked
+      .getByRole("button", { name: "Link my report to #2099-0000001" })
+      .click();
+    await expect(page.getByTestId("report-submitted")).toBeVisible();
+    await page.goto("/dashboard/");
+    await expect(page.getByText("311 #2099-0000001").first()).toBeVisible();
   });
 });

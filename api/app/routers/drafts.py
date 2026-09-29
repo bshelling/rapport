@@ -1,8 +1,9 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.auth import CurrentUserDep
 from app.models.draft import Draft, DraftPatch, PhotoUpload, PhotoUploadRequest
-from app.models.report import Report
+from app.models.report import TICKET_RE, Report
 from app.services import drafts, reports
 from app.services.dispatch import dispatch
 from app.storage import MAX_PHOTO_BYTES
@@ -93,12 +94,32 @@ def delete_photo(
     return draft
 
 
+class SubmitOptions(BaseModel):
+    # Set after the site shows an "already reported to NOLA 311" match (409).
+    confirm_new: bool = False
+    link_ticket: str | None = Field(default=None, pattern=TICKET_RE.pattern)
+
+
 @router.post("/{draft_id}/submit", status_code=status.HTTP_201_CREATED)
-def submit_draft(draft_id: str, user: CurrentUserDep) -> Report:
+def submit_draft(
+    draft_id: str, user: CurrentUserDep, options: SubmitOptions | None = None
+) -> Report:
+    options = options or SubmitOptions()
     try:
-        return reports.submit_draft(draft_id, user.sub)
+        return reports.submit_draft(
+            draft_id, user.sub, confirm_new=options.confirm_new, link_ticket=options.link_ticket
+        )
     except drafts.DraftNotFound:
         raise _not_found() from None
+    except reports.AlreadyReported as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "already_reported",
+                "message": "NOLA 311 already has an open request for this.",
+                "matches": [m.model_dump(mode="json") for m in exc.matches],
+            },
+        ) from None
     except reports.DraftIncomplete as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

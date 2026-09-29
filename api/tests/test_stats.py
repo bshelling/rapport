@@ -46,7 +46,8 @@ def test_compute_and_serve(client, monkeypatch):
         lambda f, s: iter([row("2026-1"), row("2026-2"), row("2026-3", "Pothole")]),
     )
     ingest.run()
-    submit_report(client)
+    # The City requests above sit on the same spot; the resident confirms it's new.
+    submit_report(client, confirm_new=True)
 
     monkeypatch.setattr(stats, "load_neighborhoods", lambda: HOODS)
     monkeypatch.setattr(stats, "basins_by_neighborhood", lambda: {"UPTOWN": 400, "LAKEVIEW": 900})

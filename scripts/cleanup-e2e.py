@@ -82,8 +82,14 @@ def main(env: str) -> None:
             for photo in draft.get("photos", []):
                 s3.delete_object(Bucket=bucket, Key=photo["key"])
                 deleted_photos += 1
-    # The seeded "neighbor" report (scripts/seed-e2e.py) and its +1s.
+    # The seeded "neighbor" report and fake City request (scripts/seed-e2e.py), with
+    # the +1s and link pointers the tests added to them.
     with table.batch_writer() as batch:
+        batch.delete_item(Key={"PK": "NOLA311#2099-0000001", "SK": "META"})
+        for item in table.query(KeyConditionExpression=Key("PK").eq("TICKET#2099-0000001"))[
+            "Items"
+        ]:
+            batch.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
         for item in table.query(KeyConditionExpression=Key("PK").eq("REPORT#e2e-neighbor-pothole"))[
             "Items"
         ]:
