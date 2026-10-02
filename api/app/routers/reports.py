@@ -49,6 +49,19 @@ def update_report(report_id: str, body: TicketUpdate, user: CurrentUserDep) -> R
     raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Nothing to update")
 
 
+@router.post("/{report_id}/refresh")
+def refresh_report(report_id: str, user: CurrentUserDep) -> ReportDetail:
+    """Check the City's data for progress now (throttled to once every 10 minutes)."""
+    try:
+        return reports.refresh_city_status(report_id, user.sub)
+    except reports.ReportNotFound:
+        raise _not_found() from None
+    except reports.NoTicket:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Add the NOLA 311 request number first"
+        ) from None
+
+
 @router.post("/{report_id}/support", status_code=status.HTTP_201_CREATED)
 def add_support(report_id: str, body: SupportRequest, user: CurrentUserDep) -> SupportResult:
     try:

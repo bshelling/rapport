@@ -346,6 +346,8 @@ export type ReportDetail = {
   supporter_count: number;
   nola311_ticket: string | null;
   nola311_verified: boolean;
+  /** Owner only: when the City's data was last checked for this request. */
+  city_checked_at?: string | null;
   suggested_ticket: { ticket: string; probability: number } | null;
   contact: Contact | null;
   events: ReportEvent[];
@@ -375,6 +377,20 @@ export const dismissTicketSuggestion = (id: string) =>
     body: JSON.stringify({ dismiss_ticket_suggestion: true }),
     auth: true,
   });
+
+/** Check the City's data for progress now (the API throttles to every 10 minutes). */
+export const refreshReport = (id: string) =>
+  request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}/refresh`, {
+    method: "POST",
+    auth: true,
+  });
+
+/** Fired after a report or +1 changes Rapport's data, so lists and numbers refetch. */
+export const DATA_CHANGED = "rapport:changed";
+
+export function announceDataChanged() {
+  window.dispatchEvent(new Event(DATA_CHANGED));
+}
 
 export const setTicket = (id: string, nola311_ticket: string) =>
   request<ReportDetail>(`/api/reports/${encodeURIComponent(id)}`, {

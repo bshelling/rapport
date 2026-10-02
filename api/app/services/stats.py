@@ -167,8 +167,15 @@ def rapport_numbers() -> dict:
         if "LastEvaluatedKey" not in res:
             break
         kwargs["ExclusiveStartKey"] = res["LastEvaluatedKey"]
-    # Test and demo data don't count toward Rapport's numbers.
-    real = [i for i in items if not str(i.get("id", "")).startswith("e2e-") and not i.get("sample")]
+    # Test and demo data don't count toward Rapport's numbers: the Playwright user's
+    # reports exist in prod only while a deploy's tests run.
+    real = [
+        i
+        for i in items
+        if not str(i.get("id", "")).startswith("e2e-")
+        and not i.get("sample")
+        and (i.get("contact") or {}).get("email") != "e2e@example.com"
+    ]
     return {
         "reports": len(real),
         "supporters": sum(int(i.get("supporter_count", 0)) for i in real),

@@ -198,5 +198,15 @@ test.describe("already reported to NOLA 311", () => {
     await expect(page.getByTestId("report-submitted")).toBeVisible();
     await page.goto("/dashboard/");
     await expect(page.getByText("311 #2099-0000001").first()).toBeVisible();
+
+    // Opening a linked report checks the City's data for progress right away.
+    await page.getByText("311 #2099-0000001").first().click();
+    const checked = page.getByTestId("city-checked");
+    await expect(checked).toContainText("Last checked", { timeout: 15_000 });
+    await page.getByRole("button", { name: "Check for updates" }).click();
+    await expect(checked).toContainText("Last checked");
+    await page.screenshot({
+      path: `screenshots/check-for-updates-${testInfo.project.name}.png`,
+    });
   });
 });
