@@ -1,7 +1,7 @@
 import base64
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from boto3.dynamodb.conditions import Attr, Key
@@ -298,6 +298,7 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         sample=bool(meta.get("sample")),
         nola311_ticket=meta.get("nola311_ticket"),
         nola311_verified=bool(meta.get("nola311_verified", False)),
+        city_checked_at=meta.get("city_checked_at") if is_owner else None,
         suggested_ticket=from_dynamo(meta.get("suggested_ticket")) if is_owner else None,
         contact=meta.get("contact") if is_owner else None,
         events=[
@@ -312,6 +313,50 @@ def get_detail(report_id: str, viewer_sub: str) -> ReportDetail:
         created_at=meta["created_at"],
         updated_at=meta["updated_at"],
     )
+
+
+class NoTicket(Exception):
+    pass
+
+
+# The City's data changes at most a few times a day; don't hit it on every page view.
+CITY_CHECK_INTERVAL = timedelta(minutes=10)
+
+
+def refresh_city_status(report_id: str, user_sub: str) -> ReportDetail:
+    """Check the City's data for progress on this report's NOLA 311 request now, instead
+    of waiting for the nightly sync. Same rules and events as the sync."""
+    from app.services import ingest, nola311  # avoid import cycles
+
+    meta, _ = _items(report_id)
+    if meta.get("user_sub") != user_sub:
+        raise ReportNotFound(report_id)
+    ticket = meta.get("nola311_ticket")
+    if not ticket:
+        raise NoTicket(report_id)
+    last = meta.get("city_checked_at")
+    now = datetime.now(UTC)
+    if last and now - datetime.fromisoformat(last) < CITY_CHECK_INTERVAL:
+        return get_detail(report_id, user_sub)
+    update = "SET city_checked_at = :now"
+    values: dict = {":now": now.isoformat(timespec="seconds")}
+    if get_settings().nola311_mode == "live":
+        try:
+            row = nola311.fetch_ticket(ticket)
+        except Exception:  # noqa: BLE001 - City API down: show what we have
+            log.warning("City check for %s failed", ticket, exc_info=True)
+            return get_detail(report_id, user_sub)
+        city = nola311.to_item(row) if row else None
+        if city:
+            ingest.apply_city_status(report_id, city)
+            update += ", nola311_verified = :v"
+            values[":v"] = True
+    get_table().update_item(
+        Key={"PK": f"REPORT#{report_id}", "SK": "META"},
+        UpdateExpression=update,
+        ExpressionAttributeValues=values,
+    )
+    return get_detail(report_id, user_sub)
 
 
 def set_ticket(report_id: str, user_sub: str, ticket: str) -> ReportDetail:

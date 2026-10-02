@@ -68,8 +68,9 @@ Before a report is created, submit checks for open City requests for the same pr
 
 - **Nightly import:** the import Lambda fetches City requests modified since the last run from `data.nola.gov` (a 24-month backfill the first time) and stores them for the map layer and the stats.
 - **Status sync:** a report linked to a City request number (a `TICKET#` pointer) follows the City's status. Closed means *resolved*; still open but updated more than an hour after filing means *in progress*. Each change is recorded as a timeline event from the City.
+- **Checking on demand:** when its owner opens a linked report (or taps **Check for updates**), `POST /reports/{id}/refresh` reads that request from data.nola.gov right away and applies the same rules. It runs at most once every 10 minutes per report, and a City outage just shows the last known status.
 - **Suggested links:** recent unlinked reports get the closest City request with the same reason within 150 m, filed within 72 hours. The resident confirms or dismisses it.
-- **Impact stats:** the stats are recomputed and stored as `STATS#latest`.
+- **Impact stats:** City numbers are recomputed and stored as `STATS#latest`. Rapport's own counts (reports, +1s, filed with 311, resolved) are computed live on each `GET /stats`, so a new report shows up right away. Sample data and the test account are excluded.
 
 ### Ask Rapport (chat)
 

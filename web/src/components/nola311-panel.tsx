@@ -1,9 +1,15 @@
 "use client";
 
-import { Check, ExternalLink } from "lucide-react";
-import { useEffect, useState } from "react";
-import { ApiError, type ReportDetail, setTicket } from "@/lib/api";
+import { Check, ExternalLink, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
+  ApiError,
+  type ReportDetail,
+  refreshReport,
+  setTicket,
+} from "@/lib/api";
+import {
+  formatDateTime,
   NOLA_311_REQUEST_URL,
   NOLA_311_STATUS_URL,
   nola311Summary,
@@ -30,6 +36,31 @@ export function Nola311Panel({
       setEditing(false);
     }
   }, [report.nola311_ticket]);
+
+  // Check the City's data for progress when the page opens, then on request.
+  const [checking, setChecking] = useState(false);
+  const checkedOnOpen = useRef(false);
+  const latest = useRef(onUpdated);
+  latest.current = onUpdated;
+  const check = async () => {
+    setChecking(true);
+    try {
+      latest.current(await refreshReport(report.id));
+    } catch {
+      // The page still shows the last known status.
+    } finally {
+      setChecking(false);
+    }
+  };
+  const linked = Boolean(report.nola311_ticket);
+  const open =
+    report.status !== "resolved" && report.status !== "closed_duplicate";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per open report
+  useEffect(() => {
+    if (!linked || !open || checkedOnOpen.current) return;
+    checkedOnOpen.current = true;
+    check();
+  }, [linked, open]);
 
   const copy = async () => {
     try {
@@ -88,7 +119,30 @@ export function Nola311Panel({
               ? "Found in the City's 311 data. Status updates come from the City."
               : "We'll look for it in the City's 311 data tonight (it's published daily)."}
           </p>
+          <p
+            className="mt-1 flex items-center gap-1 text-xs text-muted"
+            data-testid="city-checked"
+            aria-live="polite"
+          >
+            {checking
+              ? "Checking the City's data…"
+              : report.city_checked_at
+                ? `Last checked ${formatDateTime(report.city_checked_at)}`
+                : null}
+          </p>
           <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={check}
+              disabled={checking}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 font-medium hover:bg-brand/10 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`size-4 shrink-0 ${checking ? "animate-spin" : ""}`}
+                aria-hidden
+              />
+              Check for updates
+            </button>
             <a
               href={NOLA_311_STATUS_URL}
               target="_blank"

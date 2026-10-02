@@ -103,6 +103,8 @@ class ReportDetail(BaseModel):
     sample: bool = False
     nola311_ticket: str | None
     nola311_verified: bool = False
+    # When the City's data was last checked for this report's request (owner only).
+    city_checked_at: str | None = None
     suggested_ticket: SuggestedTicket | None = None
     contact: Contact | None
     events: list[ReportEvent]

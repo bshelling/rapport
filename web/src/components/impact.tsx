@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getStats, type NeighborhoodStat, type Stats } from "@/lib/api";
+import {
+  DATA_CHANGED,
+  getStats,
+  type NeighborhoodStat,
+  type Stats,
+} from "@/lib/api";
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -153,10 +158,15 @@ export function Impact() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [missing, setMissing] = useState(false);
 
+  // Rapport's own counts are live: refetch when a report or +1 is filed.
   useEffect(() => {
-    getStats()
-      .then(setStats)
-      .catch(() => setMissing(true));
+    const load = () =>
+      getStats()
+        .then(setStats)
+        .catch(() => setMissing(true));
+    load();
+    window.addEventListener(DATA_CHANGED, load);
+    return () => window.removeEventListener(DATA_CHANGED, load);
   }, []);
 
   if (missing) return null; // before the first nightly run

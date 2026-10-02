@@ -13,6 +13,7 @@ import {
 } from "@/components/report/submitted";
 import {
   ApiError,
+  announceDataChanged,
   createDraft,
   type Draft,
   duplicateCheckKey,
@@ -127,11 +128,13 @@ export function ReportFlow({ onClose }: { onClose: () => void }) {
   const onSubmitted = useCallback((r: Report) => {
     storeDraftId(null);
     setReport(r);
+    announceDataChanged();
   }, []);
   const [supported, setSupported] = useState<string | null>(null);
   const onSupported = useCallback((reportId: string) => {
     storeDraftId(null);
     setSupported(reportId);
+    announceDataChanged();
   }, []);
 
   const startOver = useCallback(() => {

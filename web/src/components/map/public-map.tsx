@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { Marker } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 import { useMap } from "@/components/map/use-map";
-import { getMapReports, type MapReport } from "@/lib/api";
+import { DATA_CHANGED, getMapReports, type MapReport } from "@/lib/api";
 import { cityPopupHtml, reportPopupHtml } from "@/lib/map-popup";
 import { hasMapTiles, TYPE_COLORS } from "@/lib/map-style";
 import { STATUS_LABEL } from "@/lib/report-format";
@@ -51,10 +51,15 @@ export function PublicMap() {
   // Turning basins on zooms in, even if the map is still loading at that moment.
   const zoomForBasins = useRef(false);
 
+  // Load pins now, and again when a report is filed (the form opens over this page).
   useEffect(() => {
-    getMapReports()
-      .then((r) => setReports(r.reports))
-      .catch(() => setFailed(true));
+    const load = () =>
+      getMapReports()
+        .then((r) => setReports(r.reports))
+        .catch(() => setFailed(true));
+    load();
+    window.addEventListener(DATA_CHANGED, load);
+    return () => window.removeEventListener(DATA_CHANGED, load);
   }, []);
 
   useEffect(() => {

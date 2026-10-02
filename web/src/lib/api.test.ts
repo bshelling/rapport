@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   API_BASE,
+  announceDataChanged,
   askRapport,
   type ChatTurn,
+  DATA_CHANGED,
   getHealth,
   type Health,
+  refreshReport,
 } from "./api";
 
 const realFetch = globalThis.fetch;
@@ -86,5 +89,34 @@ describe("askRapport", () => {
     await expect(
       askRapport("sess-1234", "pothole", { pollMs: 1, timeoutMs: 5 }),
     ).rejects.toThrow("timed out");
+  });
+});
+
+describe("live refresh", () => {
+  test("refreshReport asks the API to check the City's data now", async () => {
+    const fetchMock = mock(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Response.json({
+          id: "R1",
+          city_checked_at: "2026-10-02T15:00:00+00:00",
+        }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const detail = await refreshReport("R1");
+    expect(detail.city_checked_at).toBe("2026-10-02T15:00:00+00:00");
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${API_BASE}/api/reports/R1/refresh`);
+    expect(init.method).toBe("POST");
+  });
+
+  test("announceDataChanged notifies listeners", () => {
+    const target = new EventTarget();
+    globalThis.window = target as unknown as Window & typeof globalThis;
+    let heard = 0;
+    target.addEventListener(DATA_CHANGED, () => {
+      heard += 1;
+    });
+    announceDataChanged();
+    expect(heard).toBe(1);
   });
 });
